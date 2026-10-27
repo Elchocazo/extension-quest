@@ -138,6 +138,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px}td,th{padding:5px;borde
     <div class="card shop">
       <h3>🛒 Tienda de poderes</h3>
       <div id="shop"></div>
+      <button class="item" style="justify-content:center" id="btnShopRank">🏅 Ver ranking general</button>
       <button class="item" style="justify-content:center" id="btnEnd">🏳️ Terminar partida</button>
     </div>
   </div>
@@ -283,6 +284,7 @@ function setGrade(delta){
  else if(delta>0)popDelta('¡MÁX!',true);
 }
 function renderShop(){
+ if(!S)return;
  $('shop').innerHTML='';
  SHOP.forEach(it=>{
   const b=document.createElement('button');b.className='item';
@@ -384,8 +386,8 @@ const VF=[
  ['Abrir un .exe desconocido siempre es seguro.',false],
  ['El .mp4 es un formato de video muy compatible.',true],
  ['El .xlsx es de PowerPoint.',false]];
-function modal(html){$('mbox').innerHTML=html;$('modal').classList.remove('hidden');renderShop()}
-function closeModal(){$('modal').classList.add('hidden');renderShop()}
+function modal(html){$('mbox').innerHTML=html;$('modal').classList.remove('hidden');if(S)renderShop()}
+function closeModal(){$('modal').classList.add('hidden');if(S)renderShop()}
 function startChallenge(){
  const t=pick(['imp','vf','con']);
  if(t==='imp')chImpostor();else if(t==='vf')chVF();else chConnect();
@@ -452,53 +454,161 @@ saveAttempt(S.name,g,S.ok,S.bad,S.best).then(()=>showRanking('rank',S.name));
 }
 
 /* ============ RANKING COMPARTIDO (Firebase Firestore vía REST) ============ */
-// Pega aquí los datos de tu proyecto Firebase (Configuración del proyecto > Tus apps > Web).
 const FB={apiKey:'AIzaSyDshMqrAr7_1zBfMLqSbhDGoK_vrpM_lA8',projectId:'extension-quest-moz'};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fbOn=()=>!!(FB.apiKey&&FB.projectId);
 const fbBase=()=>`https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents`;
 function localAttempts(){return JSON.parse(localStorage.getItem('extQuestAttempts')||'[]')}
+
 async function saveAttempt(name,grade,ok,bad,streak){
- const rec={name,grade:+grade.toFixed(2),ok,bad,streak,ts:Date.now()};
- const l=localAttempts();l.push(rec);localStorage.setItem('extQuestAttempts',JSON.stringify(l.slice(-200)));
- if(!fbOn())return;
- try{await fetch(`${fbBase()}/attempts?key=${FB.apiKey}`,{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({fields:{name:{stringValue:name},grade:{doubleValue:rec.grade},ok:{integerValue:ok},bad:{integerValue:bad},streak:{integerValue:streak},ts:{integerValue:rec.ts}}})})}catch(e){}
+ const cleanName = (name || 'Jugador').trim().slice(0, 24);
+ const numGrade = Math.max(1, Math.min(5, +grade.toFixed(2)));
+ const rec = {name: cleanName, grade: numGrade, ok: +ok, bad: +bad, streak: +streak, ts: Date.now()};
+ const l = localAttempts();
+ l.push(rec);
+ localStorage.setItem('extQuestAttempts', JSON.stringify(l.slice(-200)));
+ if(!fbOn()) return;
+ try {
+  await fetch(`${fbBase()}/attempts?key=${FB.apiKey}`, {
+   method: 'POST',
+   headers: {'Content-Type': 'application/json'},
+   body: JSON.stringify({
+    fields: {
+     name: {stringValue: cleanName},
+     grade: {doubleValue: numGrade},
+     ok: {integerValue: "" + rec.ok},
+     bad: {integerValue: "" + rec.bad},
+     streak: {integerValue: "" + rec.streak},
+     ts: {integerValue: "" + rec.ts}
+    }
+   })
+  });
+ } catch(e) {
+  console.warn('Error enviando intento a Firestore:', e);
+ }
 }
+
 async function fetchAttempts(){
- if(!fbOn())return {list:localAttempts(),online:false};
- try{
-  const r=await fetch(`${fbBase()}:runQuery?key=${FB.apiKey}`,{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({structuredQuery:{from:[{collectionId:'attempts'}],orderBy:[{field:{fieldPath:'ts'},direction:'DESCENDING'}],limit:1000}})});
-  const j=await r.json();
-  const list=j.filter(x=>x.document).map(x=>{const f=x.document.fields;return {name:f.name.stringValue,grade:+(f.grade.doubleValue??f.grade.integerValue),ok:+f.ok.integerValue,bad:+f.bad.integerValue,streak:+f.streak.integerValue,ts:+f.ts.integerValue}});
-  return {list,online:true};
- }catch(e){return {list:localAttempts(),online:false}}
+ if(!fbOn()) return {list:localAttempts(), online:false};
+ try {
+  const r = await fetch(`${fbBase()}:runQuery?key=${FB.apiKey}`, {
+   method: 'POST',
+   headers: {'Content-Type': 'application/json'},
+   body: JSON.stringify({
+    structuredQuery: {
+     from: [{collectionId: 'attempts'}],
+     orderBy: [{field: {fieldPath: 'ts'}, direction: 'DESCENDING'}],
+     limit: 1000
+    }
+   })
+  });
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  const list = (Array.isArray(j) ? j : []).filter(x => x && x.document && x.document.fields).map(x => {
+   const f = x.document.fields;
+   const g = f.grade ? +(f.grade.doubleValue ?? f.grade.integerValue ?? 1) : 1;
+   return {
+    name: f.name?.stringValue || 'Anónimo',
+    grade: isNaN(g) ? 1 : g,
+    ok: +(f.ok?.integerValue ?? 0),
+    bad: +(f.bad?.integerValue ?? 0),
+    streak: +(f.streak?.integerValue ?? 0),
+    ts: +(f.ts?.integerValue ?? 0)
+   };
+  });
+  return {list, online: true};
+ } catch(e) {
+  console.warn('Fallo consultando Firestore, usando datos locales:', e);
+  return {list:localAttempts(), online: false};
+ }
 }
-async function showRanking(targetId,me){
- const el=$(targetId);el.innerHTML='Cargando ranking…';
- const {list,online}=await fetchAttempts();
- const m=new Map();
- list.forEach(a=>{const k=a.name.trim().toLowerCase();let p=m.get(k);if(!p){p={name:a.name,best:0,attempts:0,last:0};m.set(k,p)}
-  p.attempts++;if(a.grade>p.best)p.best=a.grade;if(a.ts>p.last){p.last=a.ts;p.name=a.name}});
- const rows=[...m.values()].sort((a,b)=>b.best-a.best||a.attempts-b.attempts);
- const medal=i=>['🥇','🥈','🥉'][i]||(i+1);
- const meKey=(me||'').trim().toLowerCase(),myIdx=rows.findIndex(p=>p.name.trim().toLowerCase()===meKey);
- el.innerHTML=(online?'':'<p style="color:var(--mut);font-size:.85rem">⚠️ Ranking local (sin conexión al servidor del curso).</p>')+
-  (rows.length?`<table><tr><th>Lugar</th><th>Jugador</th><th>Mejor nota</th><th>Intentos</th></tr>${rows.slice(0,20).map((p,i)=>`<tr style="${i===myIdx?'background:#ffd24a33;font-weight:700':''}"><td>${medal(i)}</td><td>${esc(p.name)}</td><td>${p.best.toFixed(2)}</td><td>${p.attempts}</td></tr>`).join('')}</table>`:'<p>Aún no hay intentos.</p>')+
-  (myIdx>=20?`<p>Tu lugar: #${myIdx+1}</p>`:'');
+
+async function showRanking(targetId, me){
+ const el = $(targetId);
+ if(!el) return;
+ el.innerHTML = '<div style="padding:14px;text-align:center;color:var(--mut)">⏳ Consultando ranking en vivo…</div>';
+ const {list, online} = await fetchAttempts();
+ const m = new Map();
+ list.forEach(a => {
+  if(!a || !a.name) return;
+  const k = a.name.trim().toLowerCase();
+  let p = m.get(k);
+  if(!p){ p = {name: a.name.trim(), best: 0, attempts: 0, last: 0}; m.set(k, p); }
+  p.attempts++;
+  if(a.grade > p.best) p.best = a.grade;
+  if(a.ts > p.last){ p.last = a.ts; p.name = a.name.trim(); }
+ });
+ const rows = [...m.values()].sort((a,b) => b.best - a.best || a.attempts - b.attempts);
+ const medal = i => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+ const meKey = (me || '').trim().toLowerCase();
+ const myIdx = rows.findIndex(p => p.name.trim().toLowerCase() === meKey);
+
+ const statusNotice = online
+  ? '<div style="color:var(--ok);font-size:.82rem;margin-bottom:8px">🟢 Conectado al servidor en tiempo real (todos los estudiantes)</div>'
+  : '<div style="color:var(--bad);font-size:.82rem;margin-bottom:8px">⚠️ Sin conexión al servidor (mostrando intentos de este equipo)</div>';
+
+ const tableHtml = rows.length ? `
+  <div style="max-height:300px;overflow-y:auto;border-radius:8px">
+   <table>
+    <thead>
+     <tr>
+      <th style="width:50px">Lugar</th>
+      <th>Estudiante</th>
+      <th style="text-align:center">Mejor nota</th>
+      <th style="text-align:center">Intentos</th>
+     </tr>
+    </thead>
+    <tbody>
+     ${rows.map((p,i)=>{
+       const isMe = p.name.trim().toLowerCase() === meKey;
+       const gCol = p.best>=4.0 ? 'var(--ok)' : p.best>=3.0 ? 'var(--gold)' : 'var(--bad)';
+       return `<tr style="${isMe?'background:#ffd24a26;font-weight:700':''}">
+        <td><b>${medal(i)}</b></td>
+        <td>${esc(p.name)} ${isMe?'<small style="color:var(--gold)">(Tú)</small>':''}</td>
+        <td style="text-align:center"><b style="color:${gCol}">${p.best.toFixed(2)}</b></td>
+        <td style="text-align:center">${p.attempts}</td>
+       </tr>`;
+     }).join('')}
+    </tbody>
+   </table>
+  </div>` : '<p style="text-align:center;color:var(--mut);margin:12px 0">Aún no hay intentos registrados. ¡Sé el primero en jugar!</p>';
+
+ const mySummary = (meKey && myIdx >= 0)
+  ? `<div style="background:var(--card2);padding:8px 12px;border-radius:10px;margin-top:10px;font-size:.9rem;color:var(--gold);text-align:center">
+       📍 Tu lugar: <b>${medal(myIdx)}</b> · Mejor nota: <b>${rows[myIdx].best.toFixed(2)}</b> · Intentos: <b>${rows[myIdx].attempts}</b>
+     </div>`
+  : '';
+
+ el.innerHTML = statusNotice + tableHtml + mySummary;
 }
+
 function openRanking(){
- modal(`<div class="chal-title">🏅 Ranking general</div><div id="rankm" style="text-align:left;margin:10px 0"></div><button class="next" id="rkClose">Cerrar</button>`);
- $('rkClose').onclick=closeModal;showRanking('rankm',$('pname').value);
+ const getName = () => (S && S.name) ? S.name : ($('pname') ? $('pname').value.trim() : '');
+ modal(`
+  <div class="chal-title">🏆 Salón de la Fama</div>
+  <p style="color:var(--mut);font-size:.9rem;margin:4px 0 10px">Ranking oficial del curso en tiempo real</p>
+  <div id="rankm" style="text-align:left;margin:8px 0"></div>
+  <div style="display:flex;gap:10px;justify-content:center;margin-top:12px">
+    <button class="next" id="rkReload" style="background:var(--card2)">🔄 Actualizar</button>
+    <button class="next" id="rkClose">Cerrar</button>
+  </div>
+ `);
+ const btnC = $('rkClose');
+ if(btnC) btnC.onclick = closeModal;
+ const btnR = $('rkReload');
+ if(btnR) btnR.onclick = () => showRanking('rankm', getName());
+ showRanking('rankm', getName());
 }
 
 /* ============ EVENTOS ============ */
 $('pname').value=localStorage.getItem('extQuestName')||'';
 $('btnStart').onclick=()=>{const n=$('pname').value.trim()||'Jugador';localStorage.setItem('extQuestName',n);newGame(n)};
 $('btnRank').onclick=openRanking;
- $('btnNext').onclick=nextQ;
+const bsr=$('btnShopRank'); if(bsr) bsr.onclick=openRanking;
+$('btnNext').onclick=nextQ;
 $('btnEnd').onclick=()=>{if(confirm('¿Terminar la partida ahora?'))endGame()};
+$('modal').onclick=e=>{if(e.target===$('modal'))closeModal()};
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('modal').classList.contains('hidden'))closeModal()});
 </script>
 </body>
 </html>

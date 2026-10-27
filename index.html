@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -68,7 +68,7 @@ h1{margin:0;font-size:1.6rem}
 .item:hover:not(:disabled){outline:2px solid var(--gold)}
 /* modal */
 #modal{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;z-index:10;padding:14px}
-#modal .box{background:var(--card);border-radius:20px;padding:20px;max-width:560px;width:100%;max-height:92vh;overflow:auto;text-align:center}
+#modal .box{background:var(--card);border-radius:20px;padding:20px;max-width:680px;width:100%;max-height:92vh;overflow:auto;text-align:center}
 .chal-title{font-size:1.4rem;font-weight:800;color:var(--gold)}
 .names{display:grid;gap:8px;margin:12px 0}
 .names button,.tf button{background:var(--card2);padding:12px;border-radius:10px;font-family:Consolas,monospace;font-size:1.05rem}
@@ -117,7 +117,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px}td,th{padding:5px;borde
     </div>
   </div>
 
-  <button class="big" id="btnRank" style="background:var(--card2);width:100%;font-size:1rem;padding:11px">🏅 Ver Salón de la Fama / Ranking</button>
+  <button class="big" id="btnRank" style="background:var(--card2);width:100%;font-size:1rem;padding:11px">📊 Ver Calificaciones, Historial y Ranking</button>
 </section>
 
 <!-- JUEGO -->
@@ -699,11 +699,43 @@ async function fetchAttempts(){
  }
 }
 
-async function showRanking(targetId, me){
+let cachedAttempts=[];
+let currentTab='ranking';
+
+function exportResultsCSV(list){
+ const data = (list && list.length) ? list : (cachedAttempts || []);
+ if(!data.length){
+  alert('No hay intentos registrados para exportar.');
+  return;
+ }
+ let csv = '\uFEFF"Fecha","Hora","Estudiante","Modo","Calificacion","Aciertos","Errores","Mejor Racha"\n';
+ data.forEach(a => {
+  const d = new Date(a.ts || Date.now());
+  const fecha = d.toLocaleDateString();
+  const hora = d.toLocaleTimeString();
+  const isMaria = (a.name || '').includes('[🔥María]');
+  const cleanName = (a.name || 'Estudiante').replace('[🔥María]', '').trim();
+  const modo = isMaria ? 'Modo María' : 'Modo Clásico';
+  csv += `"${fecha}","${hora}","${cleanName.replace(/"/g, '""')}","${modo}",${a.grade.toFixed(2)},${a.ok},${a.bad},${a.streak}\n`;
+ });
+ const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement('a');
+ a.href = url;
+ a.download = `Resultados_Extension_Quest_${new Date().toISOString().slice(0,10)}.csv`;
+ document.body.appendChild(a);
+ a.click();
+ document.body.removeChild(a);
+ URL.revokeObjectURL(url);
+}
+
+function renderRankingContent(targetId, me, searchQuery=''){
  const el = $(targetId);
  if(!el) return;
- el.innerHTML = '<div style="padding:14px;text-align:center;color:var(--mut)">⏳ Consultando ranking en vivo…</div>';
- const {list, online} = await fetchAttempts();
+ const list = cachedAttempts || [];
+ const q = (searchQuery || '').trim().toLowerCase();
+ const filteredList = q ? list.filter(a => (a.name || '').toLowerCase().includes(q)) : list;
+
  const m = new Map();
  list.forEach(a => {
   if(!a || !a.name) return;
@@ -714,55 +746,120 @@ async function showRanking(targetId, me){
   if(a.grade > p.best) p.best = a.grade;
   if(a.ts > p.last){ p.last = a.ts; p.name = a.name.trim(); }
  });
- const rows = [...m.values()].sort((a,b) => b.best - a.best || a.attempts - b.attempts);
+ let rows = [...m.values()].sort((a,b) => b.best - a.best || a.attempts - b.attempts);
+ if(q){
+  rows = rows.filter(r => r.name.toLowerCase().includes(q));
+ }
  const medal = i => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
  const meKey = (me || '').trim().toLowerCase();
  const myIdx = rows.findIndex(p => p.name.trim().toLowerCase() === meKey);
 
- const statusNotice = online
-  ? '<div style="color:var(--ok);font-size:.82rem;margin-bottom:8px">🟢 Conectado al servidor en tiempo real (todos los estudiantes)</div>'
-  : '<div style="color:var(--bad);font-size:.82rem;margin-bottom:8px">⚠️ Sin conexión al servidor (mostrando intentos de este equipo)</div>';
+ const tabsHtml = `
+  <div style="display:flex;gap:6px;justify-content:center;margin:6px 0 10px;flex-wrap:wrap">
+    <button id="tabRank" style="padding:7px 14px;border-radius:10px;font-weight:700;cursor:pointer;background:${currentTab==='ranking'?'var(--gold);color:#1a0510':'var(--card2);color:var(--txt)'}">🥇 Mejores Notas (${rows.length})</button>
+    <button id="tabHist" style="padding:7px 14px;border-radius:10px;font-weight:700;cursor:pointer;background:${currentTab==='history'?'var(--gold);color:#1a0510':'var(--card2);color:var(--txt)'}">📋 Historial de Partidas (${list.length})</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <input id="rkSearch" placeholder="🔍 Buscar por nombre de estudiante..." value="${esc(searchQuery)}" style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid #7c5cff66;background:var(--card2);color:var(--txt);font-size:.9rem">
+    <button id="rkExport" style="background:#1e8e4e;color:#fff;padding:8px 14px;border-radius:10px;font-weight:700;font-size:.85rem;white-space:nowrap;cursor:pointer">📥 Bajar Excel (CSV)</button>
+  </div>
+ `;
 
- const tableHtml = rows.length ? `
-  <div style="max-height:300px;overflow-y:auto;border-radius:8px">
-   <table>
-    <thead>
-     <tr>
-      <th style="width:50px">Lugar</th>
-      <th>Estudiante</th>
-      <th style="text-align:center">Mejor nota</th>
-      <th style="text-align:center">Intentos</th>
-     </tr>
-    </thead>
-    <tbody>
-     ${rows.map((p,i)=>{
-       const isMe = p.name.trim().toLowerCase() === meKey;
-       const gCol = p.best>=4.0 ? 'var(--ok)' : p.best>=3.0 ? 'var(--gold)' : 'var(--bad)';
-       return `<tr style="${isMe?'background:#ffd24a26;font-weight:700':''}">
-        <td><b>${medal(i)}</b></td>
-        <td>${esc(p.name)} ${isMe?'<small style="color:var(--gold)">(Tú)</small>':''}</td>
-        <td style="text-align:center"><b style="color:${gCol}">${p.best.toFixed(2)}</b></td>
-        <td style="text-align:center">${p.attempts}</td>
-       </tr>`;
-     }).join('')}
-    </tbody>
-   </table>
-  </div>` : '<p style="text-align:center;color:var(--mut);margin:12px 0">Aún no hay intentos registrados. ¡Sé el primero en jugar!</p>';
+ let bodyHtml = '';
+ if(currentTab === 'ranking'){
+  bodyHtml = rows.length ? `
+   <div style="max-height:280px;overflow-y:auto;border-radius:8px">
+    <table>
+     <thead>
+      <tr>
+       <th style="width:45px">Lugar</th>
+       <th>Estudiante</th>
+       <th style="text-align:center">Mejor nota</th>
+       <th style="text-align:center">Intentos</th>
+      </tr>
+     </thead>
+     <tbody>
+      ${rows.map((p,i)=>{
+        const isMe = p.name.trim().toLowerCase() === meKey;
+        const gCol = p.best>=4.0 ? 'var(--ok)' : p.best>=3.0 ? 'var(--gold)' : 'var(--bad)';
+        return `<tr style="${isMe?'background:#ffd24a26;font-weight:700':''}">
+         <td><b>${medal(i)}</b></td>
+         <td>${esc(p.name)} ${isMe?'<small style="color:var(--gold)">(Tú)</small>':''}</td>
+         <td style="text-align:center"><b style="color:${gCol}">${p.best.toFixed(2)}</b></td>
+         <td style="text-align:center">${p.attempts}</td>
+        </tr>`;
+      }).join('')}
+     </tbody>
+    </table>
+   </div>` : '<p style="text-align:center;color:var(--mut);margin:16px 0">No se encontraron estudiantes con ese nombre.</p>';
+ } else {
+  bodyHtml = filteredList.length ? `
+   <div style="max-height:280px;overflow-y:auto;border-radius:8px">
+    <table>
+     <thead>
+      <tr>
+       <th>Fecha / Hora</th>
+       <th>Estudiante</th>
+       <th style="text-align:center">Nota</th>
+       <th style="text-align:center">Aciertos/Fallos</th>
+       <th style="text-align:center">Racha</th>
+      </tr>
+     </thead>
+     <tbody>
+      ${filteredList.map(a => {
+        const d = new Date(a.ts || Date.now());
+        const timeStr = `${d.toLocaleDateString([],{day:'2-digit',month:'2-digit'})} ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+        const gCol = a.grade>=4.0 ? 'var(--ok)' : a.grade>=3.0 ? 'var(--gold)' : 'var(--bad)';
+        const isMe = (a.name||'').trim().toLowerCase() === meKey;
+        return `<tr style="${isMe?'background:#ffd24a18':''}">
+         <td style="font-size:.8rem;color:var(--mut);white-space:nowrap">${timeStr}</td>
+         <td>${esc(a.name)}</td>
+         <td style="text-align:center"><b style="color:${gCol}">${a.grade.toFixed(2)}</b></td>
+         <td style="text-align:center;font-size:.85rem"><span style="color:var(--ok)">✅${a.ok}</span> / <span style="color:var(--bad)">❌${a.bad}</span></td>
+         <td style="text-align:center;font-size:.85rem">🔥${a.streak}</td>
+        </tr>`;
+      }).join('')}
+     </tbody>
+    </table>
+   </div>` : '<p style="text-align:center;color:var(--mut);margin:16px 0">No hay partidas registradas en el historial con esa búsqueda.</p>';
+ }
 
  const mySummary = (meKey && myIdx >= 0)
-  ? `<div style="background:var(--card2);padding:8px 12px;border-radius:10px;margin-top:10px;font-size:.9rem;color:var(--gold);text-align:center">
-       📍 Tu lugar: <b>${medal(myIdx)}</b> · Mejor nota: <b>${rows[myIdx].best.toFixed(2)}</b> · Intentos: <b>${rows[myIdx].attempts}</b>
+  ? `<div style="background:var(--card2);padding:7px 12px;border-radius:10px;margin-top:8px;font-size:.88rem;color:var(--gold);text-align:center">
+       📍 Tu lugar en el curso: <b>${medal(myIdx)}</b> · Mejor nota: <b>${rows[myIdx].best.toFixed(2)}</b> · Partidas jugadas: <b>${rows[myIdx].attempts}</b>
      </div>`
   : '';
 
- el.innerHTML = statusNotice + tableHtml + mySummary;
+ el.innerHTML = tabsHtml + bodyHtml + mySummary;
+
+ const tbR = $('tabRank'); if(tbR) tbR.onclick = () => { currentTab = 'ranking'; renderRankingContent(targetId, me, $('rkSearch')?.value); };
+ const tbH = $('tabHist'); if(tbH) tbH.onclick = () => { currentTab = 'history'; renderRankingContent(targetId, me, $('rkSearch')?.value); };
+ const expB = $('rkExport'); if(expB) expB.onclick = () => exportResultsCSV(cachedAttempts);
+ const sIn = $('rkSearch');
+ if(sIn){
+  sIn.oninput = e => renderRankingContent(targetId, me, e.target.value);
+  if(searchQuery){ sIn.focus(); sIn.selectionStart = sIn.selectionEnd = sIn.value.length; }
+ }
+}
+
+async function showRanking(targetId, me){
+ const el = $(targetId);
+ if(!el) return;
+ el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mut)">⏳ Sincronizando resultados con el servidor en tiempo real…</div>';
+ const {list, online} = await fetchAttempts();
+ cachedAttempts = list;
+ const statusNotice = online
+  ? '<div style="color:var(--ok);font-size:.82rem;margin-bottom:6px">🟢 Conectado al servidor en vivo (todos los intentos guardados)</div>'
+  : '<div style="color:var(--bad);font-size:.82rem;margin-bottom:6px">⚠️ Modo local (sin conexión al servidor)</div>';
+ el.innerHTML = statusNotice + '<div id="' + targetId + '_box"></div>';
+ renderRankingContent(targetId + '_box', me);
 }
 
 function openRanking(){
  const getName = () => (S && S.name) ? S.name : ($('pname') ? $('pname').value.trim() : '');
  modal(`
-  <div class="chal-title">🏆 Salón de la Fama</div>
-  <p style="color:var(--mut);font-size:.9rem;margin:4px 0 10px">Ranking oficial del curso en tiempo real</p>
+  <div class="chal-title">📊 Calificaciones y Resultados del Curso</div>
+  <p style="color:var(--mut);font-size:.9rem;margin:4px 0 10px">Resultados y partidas guardadas en la nube en tiempo real</p>
   <div id="rankm" style="text-align:left;margin:8px 0"></div>
   <div style="display:flex;gap:10px;justify-content:center;margin-top:12px">
     <button class="next" id="rkReload" style="background:var(--card2)">🔄 Actualizar</button>

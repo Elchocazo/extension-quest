@@ -101,6 +101,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px}td,th{padding:5px;borde
     ⏱️ Tienes 25 segundos por pregunta. 50 preguntas al azar en cada partida.
   </div><br>
   <button class="big" id="btnStart">¡Comenzar batalla!</button>
+  <button class="big" id="btnRank" style="background:var(--card2);margin-left:8px">🏅 Ranking</button>
 </section>
 
 <!-- JUEGO -->
@@ -439,23 +440,65 @@ function endGame(){
  stopTimer();$('game').classList.add('hidden');$('end').classList.remove('hidden');
  const g=S.grade,medal=g>=4.8?'🏆':g>=4?'🥇':g>=3?'🥈':'🥉';
  const msg=g>=4.8?'¡LEYENDA DE LAS EXTENSIONES!':g>=4?'¡Excelente batalla!':g>=3?'¡Aprobaste! Puedes mejorar.':'Sigue entrenando, ¡la revancha te espera!';
- const board=JSON.parse(localStorage.getItem('extQuestBoard')||'[]');
- board.push({n:S.name,g:+g.toFixed(2),d:new Date().toLocaleDateString()});board.sort((a,b)=>b.g-a.g);
- localStorage.setItem('extQuestBoard',JSON.stringify(board.slice(0,8)));
  const h=S.hist,n=Math.max(h.length-1,1),pts=h.map((v,i)=>`${(i/n*296+2).toFixed(1)},${(78-(v-1)/4*74).toFixed(1)}`).join(' ');
  $('end').innerHTML=`<div class="medal">${medal}</div><h1>${msg}</h1>
- <p style="font-size:1.1rem">${S.name}, tu nota final es</p><div class="grade ${gradeClass(g)}" style="font-size:4.5rem">${g.toFixed(2)}</div>
+ <p style="font-size:1.1rem">${esc(S.name)}, tu nota final es</p><div class="grade ${gradeClass(g)}" style="font-size:4.5rem">${g.toFixed(2)}</div>
  <p>✅ Aciertos: <b>${S.ok}</b> · ❌ Errores: <b>${S.bad}</b> · 🔥 Mejor racha: <b>${S.best}</b> · ⭐ Puntos sobrantes: <b>${S.pts}</b><br>Nota más alta alcanzada: <b>${S.peak.toFixed(2)}</b></p>
  <svg viewBox="0 0 300 80" style="width:100%;height:110px;background:#0004;border-radius:12px"><polyline points="${pts}" fill="none" stroke="#ffd24a" stroke-width="2.5"/></svg>
- <h3>🏅 Salón de la fama (este equipo)</h3><table><tr><th>#</th><th>Nombre</th><th>Nota</th><th>Fecha</th></tr>${board.slice(0,8).map((b,i)=>`<tr><td>${i+1}</td><td>${b.n}</td><td>${b.g.toFixed(2)}</td><td>${b.d}</td></tr>`).join('')}</table><br>
- <button class="big" id="again">🔁 Jugar otra vez (nuevas preguntas al azar)</button>`;
- $('again').onclick=()=>newGame(S.name);
+<h3>🏅 Ranking general</h3><div id="rank" style="text-align:left">Guardando tu intento…</div><br>
+<button class="big" id="again">🔁 Jugar otra vez (nuevas preguntas al azar)</button>`;
+$('again').onclick=()=>newGame(S.name);
+saveAttempt(S.name,g,S.ok,S.bad,S.best).then(()=>showRanking('rank',S.name));
+}
+
+/* ============ RANKING COMPARTIDO (Firebase Firestore vía REST) ============ */
+// Pega aquí los datos de tu proyecto Firebase (Configuración del proyecto > Tus apps > Web).
+const FB={apiKey:'',projectId:''};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fbOn=()=>!!(FB.apiKey&&FB.projectId);
+const fbBase=()=>`https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents`;
+function localAttempts(){return JSON.parse(localStorage.getItem('extQuestAttempts')||'[]')}
+async function saveAttempt(name,grade,ok,bad,streak){
+ const rec={name,grade:+grade.toFixed(2),ok,bad,streak,ts:Date.now()};
+ const l=localAttempts();l.push(rec);localStorage.setItem('extQuestAttempts',JSON.stringify(l.slice(-200)));
+ if(!fbOn())return;
+ try{await fetch(`${fbBase()}/attempts?key=${FB.apiKey}`,{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({fields:{name:{stringValue:name},grade:{doubleValue:rec.grade},ok:{integerValue:ok},bad:{integerValue:bad},streak:{integerValue:streak},ts:{integerValue:rec.ts}}})})}catch(e){}
+}
+async function fetchAttempts(){
+ if(!fbOn())return {list:localAttempts(),online:false};
+ try{
+  const r=await fetch(`${fbBase()}:runQuery?key=${FB.apiKey}`,{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({structuredQuery:{from:[{collectionId:'attempts'}],orderBy:[{field:{fieldPath:'ts'},direction:'DESCENDING'}],limit:1000}})});
+  const j=await r.json();
+  const list=j.filter(x=>x.document).map(x=>{const f=x.document.fields;return {name:f.name.stringValue,grade:+(f.grade.doubleValue??f.grade.integerValue),ok:+f.ok.integerValue,bad:+f.bad.integerValue,streak:+f.streak.integerValue,ts:+f.ts.integerValue}});
+  return {list,online:true};
+ }catch(e){return {list:localAttempts(),online:false}}
+}
+async function showRanking(targetId,me){
+ const el=$(targetId);el.innerHTML='Cargando ranking…';
+ const {list,online}=await fetchAttempts();
+ const m=new Map();
+ list.forEach(a=>{const k=a.name.trim().toLowerCase();let p=m.get(k);if(!p){p={name:a.name,best:0,attempts:0,last:0};m.set(k,p)}
+  p.attempts++;if(a.grade>p.best)p.best=a.grade;if(a.ts>p.last){p.last=a.ts;p.name=a.name}});
+ const rows=[...m.values()].sort((a,b)=>b.best-a.best||a.attempts-b.attempts);
+ const medal=i=>['🥇','🥈','🥉'][i]||(i+1);
+ const meKey=(me||'').trim().toLowerCase(),myIdx=rows.findIndex(p=>p.name.trim().toLowerCase()===meKey);
+ el.innerHTML=(online?'':'<p style="color:var(--mut);font-size:.85rem">⚠️ Ranking local (sin conexión al servidor del curso).</p>')+
+  (rows.length?`<table><tr><th>Lugar</th><th>Jugador</th><th>Mejor nota</th><th>Intentos</th></tr>${rows.slice(0,20).map((p,i)=>`<tr style="${i===myIdx?'background:#ffd24a33;font-weight:700':''}"><td>${medal(i)}</td><td>${esc(p.name)}</td><td>${p.best.toFixed(2)}</td><td>${p.attempts}</td></tr>`).join('')}</table>`:'<p>Aún no hay intentos.</p>')+
+  (myIdx>=20?`<p>Tu lugar: #${myIdx+1}</p>`:'');
+}
+function openRanking(){
+ modal(`<div class="chal-title">🏅 Ranking general</div><div id="rankm" style="text-align:left;margin:10px 0"></div><button class="next" id="rkClose">Cerrar</button>`);
+ $('rkClose').onclick=closeModal;showRanking('rankm',$('pname').value);
+}
 }
 
 /* ============ EVENTOS ============ */
 $('pname').value=localStorage.getItem('extQuestName')||'';
 $('btnStart').onclick=()=>{const n=$('pname').value.trim()||'Jugador';localStorage.setItem('extQuestName',n);newGame(n)};
-$('btnNext').onclick=nextQ;
+$('btnRank').onclick=openRanking;
+ $('btnNext').onclick=nextQ;
 $('btnEnd').onclick=()=>{if(confirm('¿Terminar la partida ahora?'))endGame()};
 </script>
 </body>

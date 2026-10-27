@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -93,19 +93,38 @@ table{width:100%;border-collapse:collapse;margin-top:8px}td,th{padding:5px;borde
   <div style="font-size:3rem">🛡️📂⚔️</div>
   <h1>Extensión Quest</h1>
   <p>¡Conecta cada archivo con su extensión y pelea por el <b>5.0</b>!</p>
-  <input id="pname" maxlength="24" placeholder="Tu nombre de guerrero/a">
-  <div class="rules">
-    🎯 Empiezas con nota <b>1.0</b>. Acierto: sube tu nota y ganas puntos. Error: <b>baja la nota</b> y pierdes puntos.<br>
-    🔥 Las rachas dan nota y puntos extra.<br>
-    🛒 Gasta tus puntos en <b>escudos</b>, retos de <b>inmunidad</b>, pistas, doble puntos y más.<br>
-    ⏱️ Tienes 25 segundos por pregunta. 50 preguntas al azar en cada partida.
-  </div><br>
-  <button class="big" id="btnStart">¡Comenzar batalla!</button>
-  <button class="big" id="btnRank" style="background:var(--card2);margin-left:8px">🏅 Ranking</button>
+  <input id="pname" maxlength="20" placeholder="Tu nombre de estudiante">
+  
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0;text-align:left">
+    <div style="background:var(--card2);padding:14px;border-radius:14px;border:2px solid #7c5cff44;display:flex;flex-direction:column;justify-content:space-between">
+      <div>
+        <div style="font-weight:800;font-size:1.15rem;color:var(--txt)">⚔️ Modo Clásico</div>
+        <p style="font-size:.85rem;color:var(--mut);margin:6px 0 12px;line-height:1.4">
+          50 preguntas balanceadas de formatos e iconos. 25 segundos, tienda clásica y retos de inmunidad.
+        </p>
+      </div>
+      <button class="big" id="btnStart" style="width:100%;padding:10px;font-size:1rem">Jugar Clásico</button>
+    </div>
+
+    <div style="background:linear-gradient(135deg,#361022,#21113b);padding:14px;border-radius:14px;border:2px solid #ff3366aa;box-shadow:0 0 16px #ff336633;display:flex;flex-direction:column;justify-content:space-between">
+      <div>
+        <div style="font-weight:800;font-size:1.15rem;color:#ff5fa2">🔥 Modo María (Experto)</div>
+        <p style="font-size:.85rem;color:#f0b8d5;margin:6px 0 12px;line-height:1.4">
+          ¡Presión forense máxima! Preguntas técnicas de ciberseguridad y trampas reales. Solo <b>14 seg</b>, <b>3 Vidas (❤️❤️❤️)</b> y muerte súbita.
+        </p>
+      </div>
+      <button class="big" id="btnMaria" style="width:100%;padding:10px;font-size:1rem;background:linear-gradient(90deg,#ff1361,#fff800);color:#150209;font-weight:800">¡Retar a María!</button>
+    </div>
+  </div>
+
+  <button class="big" id="btnRank" style="background:var(--card2);width:100%;font-size:1rem;padding:11px">🏅 Ver Salón de la Fama / Ranking</button>
 </section>
 
 <!-- JUEGO -->
 <section id="game" class="hidden">
+  <div id="mariaBanner" class="hidden" style="background:linear-gradient(90deg,#ff1361,#ff7a00);color:#fff;font-weight:900;text-align:center;padding:7px;border-radius:10px;margin-bottom:12px;letter-spacing:1px;box-shadow:0 0 12px #ff136188">
+    🔥 MODO MARÍA: EXAMEN FORENSE & PRESIÓN MÁXIMA 🔥
+  </div>
   <div id="hud">
     <div class="card gradebox">
       <div class="lbl">Tu calificación</div>
@@ -115,7 +134,10 @@ table{width:100%;border-collapse:collapse;margin-top:8px}td,th{padding:5px;borde
       <div class="delta" id="delta"></div>
     </div>
     <div class="card">
-      <div class="lbl">Puntos</div><div class="stat">⭐ <span id="pts">0</span></div>
+      <div style="display:flex;justify-content:space-between">
+        <div><div class="lbl">Puntos</div><div class="stat">⭐ <span id="pts">0</span></div></div>
+        <div id="livesContainer" class="hidden" style="text-align:right"><div class="lbl">Vidas</div><div class="stat" id="livesText" style="letter-spacing:2px">❤️❤️❤️</div></div>
+      </div>
       <div class="lbl" style="margin-top:6px">Racha</div><div class="stat">🔥 <span id="streak">0</span></div>
       <div class="badges" id="badges"></div>
     </div>
@@ -244,7 +266,7 @@ function buildBank(){
 }
 
 /* ============ TIENDA ============ */
-const SHOP=[
+const SHOP_NORMAL=[
  {id:'shield',ico:'🛡️',n:'Escudo',d:'Bloquea tu próximo error (máx. 3)',p:40},
  {id:'immun',ico:'🧪',n:'Reto de inmunidad',d:'Supera el reto: 3 preguntas sin perder nota',p:30},
  {id:'double',ico:'⚡',n:'Doble puntos',d:'x2 puntos durante 5 preguntas',p:50},
@@ -253,15 +275,83 @@ const SHOP=[
  {id:'heal',ico:'❤️‍🩹',n:'Poción de nota',d:'Recupera +0.30 de nota',p:90}
 ];
 
+const SHOP_MARIA=[
+ {id:'freeze',ico:'❄️',n:'Hielo Criogénico',d:'Añade +8 segundos al reloj',p:25},
+ {id:'shield',ico:'🛡️',n:'Blindaje María',d:'Bloquea tu próximo fallo (no pierdes vida)',p:40},
+ {id:'fifty',ico:'⚡',n:'Furia 50/50',d:'Elimina 2 opciones trampa al instante',p:20},
+ {id:'life',ico:'❤️',n:'Inyección de Vida',d:'Recupera 1 vida perdida (máx. 3)',p:65},
+ {id:'heal',ico:'❤️‍🩹',n:'Poción de Nota',d:'Recupera +0.30 de nota',p:75}
+];
+
+/* ============ PREGUNTAS MODO MARÍA ============ */
+const MARIA_QUESTIONS=[
+ {t:'maria',txt:'Forenses de seguridad: Un correo adjunta "Factura_Pago.pdf .exe" (con 30 espacios entre .pdf y .exe). ¿Cómo se ejecuta y por qué?',opts:['Se ejecuta como .exe porque Windows siempre lee la extensión final','Se abre como .pdf porque fue la primera extensión escrita','Windows lo bloquea automáticamente por tener doble extensión','Se abre en el Bloc de Notas como texto plano'],ans:'Se ejecuta como .exe porque Windows siempre lee la extensión final',exp:'Los ciberdelincuentes usan espacios para que el usuario solo lea ".pdf", pero el sistema siempre ejecuta la extensión final (.exe).'},
+ {t:'maria',txt:'¿Qué significa la letra "x" al final de formatos modernos como .docx, .xlsx y .pptx?',opts:['Formato basado en el estándar abierto XML comprimido en ZIP','Extensión que significa "eXecutable" (archivo autoejecutable)','Indica que el documento tiene protección criptográfica eXtra','Significa que fue creado exclusivamente por Windows XP'],ans:'Formato basado en el estándar abierto XML comprimido en ZIP',exp:'Desde Office 2007, Microsoft migró a Office Open XML (XML empaquetado en un contenedor ZIP).'},
+ {t:'maria',txt:'Si a un documento "Trabajo.docx" le cambias la extensión a "Trabajo.zip" y lo descomprimes, ¿qué ocurre?',opts:['Se extraen carpetas con archivos .xml, estilos y las fotos originales','El archivo se destruye permanentemente y queda irrecuperable','Windows pide una contraseña especial de Microsoft Office','Se convierte automáticamente en una presentación de PowerPoint'],ans:'Se extraen carpetas con archivos .xml, estilos y las fotos originales',exp:'¡Un .docx es en realidad un archivo comprimido .zip! Contiene la estructura XML del texto y una carpeta con las imágenes.'},
+ {t:'maria',txt:'¿Qué es el formato de imagen .webp creado por Google y por qué supera a .jpg y .png en la web?',opts:['Ofrece compresión con y sin pérdida superior, reduciendo peso y soportando transparencia','Es un archivo ejecutable que reproduce videos sin navegador','Solo funciona en teléfonos Android y no se puede ver en PC','Es idéntico a .gif pero limitado a solo 16 colores'],ans:'Ofrece compresión con y sin pérdida superior, reduciendo peso y soportando transparencia',exp:'WebP combina lo mejor de JPG (poco peso) y PNG (transparencias sin pérdida), cargando páginas webs mucho más rápido.'},
+ {t:'maria',txt:'¿Qué diferencia crucial hay entre un archivo .csv y un archivo .xlsx?',opts:['.csv es texto plano con valores separados por comas sin fórmulas ni formatos visuales','.csv puede guardar macros complejas mientras que .xlsx no','.csv es un formato exclusivo de diseño 3D','.xlsx no permite guardar datos numéricos'],ans:'.csv es texto plano con valores separados por comas sin fórmulas ni formatos visuales',exp:'CSV (Comma-Separated Values) es solo texto plano sin formato ni fórmulas de cálculo. XLSX guarda fórmulas, estilos y hojas múltiples.'},
+ {t:'maria',txt:'Un usuario descarga "Juego_Gratis.bat". ¿Qué peligro inminente tiene este archivo?',opts:['Es un script por lotes que ejecuta comandos directos de la consola de Windows (CMD)','Es una imagen dañada que sobrecalienta la pantalla','Es un documento de Word que borra los márgenes de página','No tiene ningún peligro porque Windows no reconoce la extensión .bat'],ans:'Es un script por lotes que ejecuta comandos directos de la consola de Windows (CMD)',exp:'.bat (Batch) ejecuta secuencias de comandos de consola que pueden borrar archivos o modificar registros del sistema.'},
+ {t:'maria',txt:'¿Qué son los "Magic Bytes" o firmas de archivo en informática forense?',opts:['Los primeros bytes binarios que identifican el formato real sin importar la extensión que tenga','Un código secreto que los programadores usan para piratear juegos','La cantidad máxima de caracteres que puede tener el nombre de un archivo','El algoritmo de compresión que usa WinRAR'],ans:'Los primeros bytes binarios que identifican el formato real sin importar la extensión que tenga',exp:'Por ejemplo, todo archivo PDF empieza con "%PDF" (25 50 44 46 en hex) y todo PNG con "89 50 4E 47", sin importar su extensión.'},
+ {t:'maria',txt:'¿Por qué un gráfico vectorial .svg NUNCA pierde nitidez al hacerle zoom infinito, a diferencia de un .jpg?',opts:['Porque se calcula mediante fórmulas matemáticas y coordenadas vectoriales, no por píxeles fijos','Porque tiene una resolución fija de 50.000 megapíxeles','Porque contiene un motor de inteligencia artificial que dibuja en vivo','Porque se almacena sin compresión de audio'],ans:'Porque se calcula mediante fórmulas matemáticas y coordenadas vectoriales, no por píxeles fijos',exp:'SVG define líneas, curvas y colores en código XML. Al ampliar la imagen, las fórmulas matemáticas se recalculan con máxima nitidez.'},
+ {t:'maria',txt:'¿Qué extensión tiene una imagen completa de disco óptico (CD/DVD) que Windows monta como unidad lectora virtual?',opts:['.iso','.dmg','.vhd','.bin.exe'],ans:'.iso',exp:'.iso es la réplica exacta de un disco óptico bajo la norma ISO 9660. En Windows se monta como si insertaras un disco físico.'},
+ {t:'maria',txt:'Si descargas un archivo llamado "Script.vbs", ¿qué entorno de Windows lo interpreta por defecto?',opts:['Windows Script Host (wscript.exe / cscript.exe)','Google Chrome o Microsoft Edge','Bloc de Notas sin ejecutar nada','Microsoft Excel'],ans:'Windows Script Host (wscript.exe / cscript.exe)',exp:'VBS (Visual Basic Script) es ejecutado directamente por Windows Script Host, siendo una vía histórica de propagación de malware.'},
+ {t:'maria',txt:'¿Cuál de los siguientes formatos de audio almacena sonido con compresión SIN pérdida (lossless)?',opts:['.flac','.mp3','.aac','.ogg'],ans:'.flac',exp:'FLAC (Free Lossless Audio Codec) comprime el tamaño del audio entre un 50% y 60% sin descartar un solo bit del sonido original.'},
+ {t:'maria',txt:'Si renombras un archivo "Video.mp4" a "Video.docx" e intentas abrirlo con Word, ¿qué ocurre?',opts:['Word muestra error o símbolos extraños porque su estructura no es texto XML válido','Word reproduce el video en pantalla completa de inmediato','El video se convierte en un informe escrito con subtítulos','El disco duro se formatea por incompatibilidad'],ans:'Word muestra error o símbolos extraños porque su estructura no es texto XML válido',exp:'Renombrar la extensión no transforma la estructura interna. Word buscará etiquetas XML y fallará al encontrar el flujo MP4.'},
+ {t:'maria',txt:'Si un archivo pierde completamente su extensión (queda nombrado únicamente como "Datos"), ¿qué pasa con su información?',opts:['Los datos siguen 100% intactos; el sistema solo no sabe qué programa usar para abrirlo','La información se borra y el archivo queda vacío en cero bytes','Se convierte permanentemente en un archivo ejecutable .exe','Windows elimina el archivo a la Papelera de Reciclaje'],ans:'Los datos siguen 100% intactos; el sistema solo no sabe qué programa usar para abrirlo',exp:'La extensión es solo una etiqueta. Los datos binarios siguen en el disco. Al devolverle su extensión correcta, abre con normalidad.'},
+ {t:'maria',txt:'¿Qué comando de teclado en Windows abre directamente las Propiedades de cualquier archivo seleccionado?',opts:['Alt + Enter','Ctrl + Shift + Delete','Win + R','Ctrl + Alt + Supr'],ans:'Alt + Enter',exp:'Alt + Enter abre las propiedades detalladas mostrando tamaño, ubicación y tipo de archivo.'},
+ {t:'maria',txt:'En desarrollo web y bases de datos modernas, ¿para qué se utiliza la extensión .json?',opts:['Intercambio de datos estructurados ligeros entre aplicaciones y servidores','Diseño de logotipos vectoriales de alta definición','Compresión de videos de alta fidelidad 4K','Instalación de controladores de hardware en placas madre'],ans:'Intercambio de datos estructurados ligeros entre aplicaciones y servidores',exp:'JSON (JavaScript Object Notation) es el estándar universal actual de texto plano estructurado para comunicar APIs y bases de datos.'},
+ {t:'maria',txt:'¿Qué extensión tiene una hoja de cálculo de Excel habilitada para ejecutar macros programadas en VBA?',opts:['.xlsm','.xlsx','.xlsb.exe','.csvm'],ans:'.xlsm',exp:'Por seguridad, las hojas de cálculo estándar (.xlsx) no pueden ejecutar macros. Deben guardarse obligatoriamente como .xlsm.'},
+ {t:'maria',txt:'¿Qué es por dentro un archivo de aplicación móvil para Android con extensión .apk?',opts:['Un archivo comprimido en formato ZIP que contiene código compilado DEX y recursos','Un documento de Word con permisos de lectura y escritura','Un video interactivo en formato MP4','Un archivo binario idéntico a un .exe de Windows'],ans:'Un archivo comprimido en formato ZIP que contiene código compilado DEX y recursos',exp:'Si renombras un archivo .apk a .zip, puedes descomprimirlo y ver su manifiesto XML, iconos y código compilado.'},
+ {t:'maria',txt:'¿Cuál es la extensión de los accesos directos estándar creados en el escritorio de Windows?',opts:['.lnk','.shortcut','.url.exe','.dir'],ans:'.lnk',exp:'Los accesos directos de Windows tienen la extensión oculta .lnk (Link), que apunta a la ruta real de un archivo o ejecutable.'},
+ {t:'maria',txt:'¿Qué extensión tiene un script de automatización y administración en Windows PowerShell?',opts:['.ps1','.sh','.batx','.pwrs'],ans:'.ps1',exp:'.ps1 es la extensión de los scripts de PowerShell. Requieren políticas de ejecución (ExecutionPolicy) para activarse por seguridad.'},
+ {t:'maria',txt:'Si creas un archivo de texto en el Bloc de Notas con etiquetas <h1>Hola</h1>, ¿qué extensión debes ponerle para verlo en el navegador?',opts:['.html (o .htm)','.web','.docx','.txt.web'],ans:'.html (o .htm)',exp:'HTML (HyperText Markup Language) le indica al navegador que interprete las etiquetas visuales para mostrar una página web.'},
+ {t:'maria',txt:'¿Cuál de los siguientes formatos NO es un archivo empaquetado o comprimido: .7z, .tar.gz, .rar, .dll?',opts:['.dll','.7z','.tar.gz','.rar'],ans:'.dll',exp:'.dll (Dynamic Link Library) es una librería compartida de código compilado de Windows, no un contenedor de compresión.'},
+ {t:'maria',txt:'¿Por qué NUNCA se debe guardar el logotipo maestro corporativo en formato .jpg?',opts:['Porque comprime descartando detalles (con pérdida) y no admite fondo transparente','Porque los archivos .jpg solo pueden verse en televisores','Porque los navegadores web modernos no reconocen imágenes .jpg','Porque pesa demasiado en comparación con un archivo de audio'],ans:'Porque comprime descartando detalles (con pérdida) y no admite fondo transparente',exp:'Los logos necesitan nitidez vectorial (.svg) o transparencias (.png). JPG borra información en los bordes y coloca fondo blanco forzado.'},
+ {t:'maria',txt:'En sistemas Linux, ¿qué define fundamentalmente si un archivo se puede ejecutar como programa?',opts:['Los permisos del archivo (chmod +x) y su cabecera, no exclusivamente la extensión','Que termine obligatoriamente en .exe','El tamaño en megabytes del archivo','El color del icono en la interfaz gráfica'],ans:'Los permisos del archivo (chmod +x) y su cabecera, no exclusivamente la extensión',exp:'En Linux las extensiones son informativas; la ejecución depende del bit de permiso de ejecución (+x) y de los magic bytes o shebang.'},
+ {t:'maria',txt:'Un archivo con extensión compuesta ".tar.gz", ¿qué dos operaciones representa?',opts:['Consolidación de muchos archivos en uno solo (.tar) y compresión posterior con gzip (.gz)','Un archivo de audio (.tar) con video sincronizado (.gz)','Una presentación de diapositivas con animación 3D','Un ejecutable de Windows compatible con Mac'],ans:'Consolidación de muchos archivos en uno solo (.tar) y compresión posterior con gzip (.gz)',exp:'TAR (Tape Archive) empaqueta carpetas enteras sin comprimir, y GZIP comprime el archivo resultante para que pese lo mínimo.'},
+ {t:'maria',txt:'¿Cuál de estos formatos es un contenedor multimedia capaz de almacenar video, múltiples pistas de audio y subtítulos?',opts:['.mkv (Matroska)','.wav','.mid','.bmp'],ans:'.mkv (Matroska)',exp:'Matroska (.mkv) es un contenedor muy flexible que permite incluir video de alta definición, menús y múltiples audios y subtítulos.'}
+];
+
+function buildMariaBank(){
+ const q=MARIA_QUESTIONS.map(m=>({...m,opts:shuffle(m.opts)}));
+ const traps=[
+  {name:'Boletin_Final_Octavo.pdf.exe', ans:'.exe', exp:'¡Trampa clásica! Aunque tenga .pdf en el nombre, la extensión real operativa es la última: .exe.'},
+  {name:'Foto_Paseo_Escolar.png.vbs', ans:'.vbs', exp:'Parece una foto, pero Windows ejecutará un script de Visual Basic (.vbs) potencialmente peligroso.'},
+  {name:'Contabilidad_Feria.xlsx.bat', ans:'.bat', exp:'Disfrazado de Excel, en realidad ejecutará un archivo de comandos por lotes (.bat).'},
+  {name:'Instalador_Minecraft.mp3.iso', ans:'.iso', exp:'No es audio; es una imagen de disco virtual (.iso) que se monta como unidad lectora.'},
+  {name:'Actualizacion_Word.docx.exe', ans:'.exe', exp:'Malware disfrazado de Word. Si tienes extensiones ocultas, solo verías "Actualizacion_Word.docx".'}
+ ];
+ traps.forEach(tr=>{
+  const pool=shuffle(['.exe','.vbs','.bat','.iso','.docx','.pdf','.png'].filter(x=>x!==tr.ans)).slice(0,3);
+  pool.push(tr.ans);
+  q.push({
+   t:'trap',
+   name:tr.name,
+   opts:shuffle(pool),
+   ans:tr.ans,
+   exp:tr.exp,
+   txt:`Caso Forense: Se detectó el archivo sospechoso "${tr.name}". ¿Cuál es la extensión real con la que Windows ejecutará el archivo?`
+  });
+ });
+ return q;
+}
+
 /* ============ ESTADO ============ */
 let S,bank,cur,answered,tleft,tint,paused;
-const TIME=25;
 function clamp(x){return Math.max(1,Math.min(5,x))}
 
-function newGame(name){
- S={name,grade:1,pts:0,shield:0,immun:0,dbl:0,streak:0,best:0,ok:0,bad:0,i:-1,hist:[1],used:0,peak:1};
- bank=shuffle(buildBank());
+function newGame(name,mode='normal'){
+ const isM=mode==='maria';
+ S={name,mode,lives:isM?3:null,maxTime:isM?14:25,grade:1,pts:0,shield:0,immun:0,dbl:0,streak:0,best:0,ok:0,bad:0,i:-1,hist:[1],used:0,peak:1};
+ bank=shuffle(isM?buildMariaBank().slice(0,20):buildBank());
  $('start').classList.add('hidden');$('end').classList.add('hidden');$('game').classList.remove('hidden');
+ if(isM){
+  $('mariaBanner').classList.remove('hidden');
+  $('livesContainer').classList.remove('hidden');
+ }else{
+  $('mariaBanner').classList.add('hidden');
+  $('livesContainer').classList.add('hidden');
+ }
  renderHUD();renderShop();nextQ();
 }
 /* ============ HUD ============ */
@@ -270,6 +360,10 @@ function renderHUD(){
  $('grade').textContent=S.grade.toFixed(2);$('grade').className='grade '+gradeClass(S.grade);
  $('gbar').style.width=((S.grade-1)/4*100)+'%';
  $('pts').textContent=S.pts;$('streak').textContent=S.streak;
+ if(S.mode==='maria'){
+  const lv=$('livesText');
+  if(lv)lv.textContent=S.lives>0?('❤️'.repeat(S.lives)+'🖤'.repeat(Math.max(0,3-S.lives))):'💀 DERROTADO';
+ }
  $('badges').innerHTML=(S.shield?`<span class="badge">🛡️ x${S.shield}</span>`:'')+(S.immun?`<span class="badge">🧪 Inmune ${S.immun}</span>`:'')+(S.dbl?`<span class="badge">⚡ x2 (${S.dbl})</span>`:'');
  // sparkline
  const h=S.hist,n=Math.max(h.length-1,1),pts=h.map((v,i)=>`${(i/n*296+2).toFixed(1)},${(58-(v-1)/4*54).toFixed(1)}`).join(' ');
@@ -286,13 +380,16 @@ function setGrade(delta){
 function renderShop(){
  if(!S)return;
  $('shop').innerHTML='';
- SHOP.forEach(it=>{
+ const currentShop=S.mode==='maria'?SHOP_MARIA:SHOP_NORMAL;
+ currentShop.forEach(it=>{
   const b=document.createElement('button');b.className='item';
   let dis=S.pts<it.p||paused&&it.id!=='x';
   if(it.id==='shield'&&S.shield>=3)dis=true;
   if(it.id==='fifty'&&(answered||!cur||cur.used50))dis=true;
   if(it.id==='skip'&&answered)dis=true;
   if(it.id==='heal'&&S.grade>=4.9)dis=true;
+  if(it.id==='life'&&(S.lives>=3||answered))dis=true;
+  if(it.id==='freeze'&&answered)dis=true;
   b.disabled=dis||!!document.querySelector('#modal:not(.hidden)');
   b.innerHTML=`<span>${it.ico} <b>${it.n}</b><small>${it.d}</small></span><span class="price">${it.p}</span>`;
   b.onclick=()=>buy(it);$('shop').appendChild(b);
@@ -307,6 +404,12 @@ function buy(it){
    const wr=shuffle([...document.querySelectorAll('.opt')].filter(b=>b.dataset.v!==cur.ans)).slice(0,2);wr.forEach(b=>b.classList.add('gone'));}
  else if(it.id==='skip'){S.pts-=it.p;stopTimer();finishQ(null,true);return;}
  else if(it.id==='immun'){S.pts-=it.p;renderHUD();startChallenge();return;}
+ else if(it.id==='freeze'){
+   S.pts-=it.p;tleft=Math.min(S.maxTime,tleft+8);$('tbar').style.width=(tleft/S.maxTime*100)+'%';popDelta('❄️ +8s',true);
+ }
+ else if(it.id==='life'){
+   if(S.lives<3){S.pts-=it.p;S.lives++;renderHUD();popDelta('❤️ +1 Vida',true);}
+ }
  renderHUD();
 }
 
@@ -317,20 +420,33 @@ function nextQ(){
  $('fb').classList.add('hidden');$('btnNext').classList.add('hidden');
  $('qnum').textContent=`Pregunta ${S.i+1} / ${bank.length}`;
  const v=$('visual');
- if(cur.t==='icon'){$('qtype').textContent='🖼️ Identifica el archivo';
+ if(cur.t==='icon'){
+  $('qtype').textContent='🖼️ Identifica el archivo';
   v.innerHTML=icon(cur.ext)+`<div class="fname">${cur.name}<span style="color:var(--gold)">.???</span></div>`;
-  $('qtext').textContent='¿Cuál es la extensión de este archivo?';}
- else if(cur.t==='clue'){$('qtype').textContent='🔗 Conecta con su extensión';
-  v.innerHTML=unknownIcon;$('qtext').textContent=cur.txt;}
- else{$('qtype').textContent='🧠 Concepto';v.innerHTML='<div style="font-size:3rem">🤔</div>';$('qtext').textContent=cur.txt;}
+  $('qtext').textContent='¿Cuál es la extensión de este archivo?';
+ }else if(cur.t==='trap'){
+  $('qtype').textContent='🚨 Trampa Forense (Doble extensión)';
+  v.innerHTML='<div style="font-size:3rem">🕵️‍♂️💾</div>'+`<div class="fname" style="color:var(--bad)">${cur.name}</div>`;
+  $('qtext').textContent=cur.txt;
+ }else if(cur.t==='maria'){
+  $('qtype').textContent='🔥 Desafío Experto de María';
+  v.innerHTML='<div style="font-size:3rem">👩‍🏫💻</div>';
+  $('qtext').textContent=cur.txt;
+ }else if(cur.t==='clue'){
+  $('qtype').textContent='🔗 Conecta con su extensión';
+  v.innerHTML=unknownIcon;$('qtext').textContent=cur.txt;
+ }else{
+  $('qtype').textContent='🧠 Concepto';
+  v.innerHTML='<div style="font-size:3rem">🤔</div>';$('qtext').textContent=cur.txt;
+ }
  const o=$('opts');o.innerHTML='';
- cur.opts.forEach(t=>{const b=document.createElement('button');b.className='opt'+(cur.t!=='concept'?' ext':'');b.textContent=t;b.dataset.v=t;b.onclick=()=>answer(b);o.appendChild(b)});
+ cur.opts.forEach(t=>{const b=document.createElement('button');b.className='opt'+(cur.t==='icon'?' ext':'');b.textContent=t;b.dataset.v=t;b.onclick=()=>answer(b);o.appendChild(b)});
  cur.used50=false;renderShop();startTimer();
 }
 function startTimer(){
- stopTimer();tleft=TIME;paused=false;
+ stopTimer();tleft=S.maxTime||25;paused=false;
  tint=setInterval(()=>{ if(document.querySelector('#modal:not(.hidden)'))return;
-  tleft-=.1;$('tbar').style.width=(tleft/TIME*100)+'%';$('tbar').style.background=tleft<6?'var(--bad)':'var(--acc)';
+  tleft-=.1;const mt=S.maxTime||25;$('tbar').style.width=(tleft/mt*100)+'%';$('tbar').style.background=tleft<5?'var(--bad)':'var(--acc)';
   if(tleft<=0){stopTimer();finishQ(null,false,true)}},100);
 }
 function stopTimer(){clearInterval(tint)}
@@ -343,23 +459,52 @@ function finishQ(ok,skipped,timeout,btn){
  document.querySelectorAll('.opt').forEach(b=>{b.disabled=true;if(b.dataset.v===cur.ans)b.classList.add('right')});
  if(btn&&!ok)btn.classList.add('wrong');
  let msg='';
- if(skipped){msg=`<b>⏭️ Saltaste.</b> Era <b>${cur.ans}</b>.`;}
- else if(ok){
+ const isM=S.mode==='maria';
+
+ if(skipped){
+  msg=`<b>⏭️ Saltaste.</b> Era <b>${cur.ans}</b>.`;
+ }else if(ok){
   S.ok++;S.streak++;S.best=Math.max(S.best,S.streak);
-  let gain=10+2*Math.min(S.streak,5);if(S.dbl>0)gain*=2;
-  S.pts+=gain;setGrade(.12+(S.streak>=3?.03:0));
-  msg=`<b class="ok">✅ ¡Correcto!</b> +${gain} puntos${S.streak>=3?' 🔥 ¡racha!':''}${S.dbl>0?' ⚡':''}`;
+  let gain=(isM?12:10)+2*Math.min(S.streak,5);if(S.dbl>0)gain*=2;
+  const isFast=isM&&tleft>=(S.maxTime-5);
+  if(isFast)gain+=5;
+  S.pts+=gain;
+  const gradeBoost=isM?(.22+(isFast?.04:0)+(S.streak>=3?.03:0)):(.12+(S.streak>=3?.03:0));
+  setGrade(gradeBoost);
+  msg=`<b class="ok">✅ ¡Correcto!</b> +${gain} puntos${isFast?' ⚡ ¡Reflejo ultrarrápido!':''}${S.streak>=3?' 🔥 ¡racha!':''}${S.dbl>0?' ⚡':''}`;
  }else{
   S.bad++;S.streak=0;
   const why=timeout?'⏰ ¡Se acabó el tiempo!':'❌ Incorrecto.';
-  if(S.immun>0){msg=`<b class="bad">${why}</b> 🧪 Tu inmunidad te protegió: no pierdes nada.`;}
-  else if(S.shield>0){S.shield--;msg=`<b class="bad">${why}</b> 🛡️ ¡Tu escudo absorbió el golpe!`;}
-  else{const lose=Math.min(5,S.pts);S.pts-=lose;setGrade(-.2);msg=`<b class="bad">${why}</b> −0.20 de nota${lose?` y −${lose} puntos`:''}.`;}
+  if(S.immun>0){
+   msg=`<b class="bad">${why}</b> 🧪 Tu inmunidad te protegió: no pierdes nada.`;
+  }else if(S.shield>0){
+   S.shield--;msg=`<b class="bad">${why}</b> 🛡️ ¡Tu escudo absorbió el golpe!`;
+  }else{
+   if(isM){
+    S.lives--;
+    setGrade(-.30);
+    msg=`<b class="bad">${why}</b> 💔 Pierdes 1 vida y −0.30 de nota.`;
+    popDelta('💔 -1 Vida',false);
+   }else{
+    const lose=Math.min(5,S.pts);S.pts-=lose;setGrade(-.2);
+    msg=`<b class="bad">${why}</b> −0.20 de nota${lose?` y −${lose} puntos`:''}.`;
+   }
+  }
  }
  if(S.immun>0)S.immun--;if(S.dbl>0)S.dbl--;
- const ca=cur.t==='concept'?cur.ans:cur.ans;
- $('fb').innerHTML=`${msg}<br>Respuesta: <b>${ca}</b> — ${cur.exp}`;
+ $('fb').innerHTML=`${msg}<br>Respuesta: <b>${cur.ans}</b> — ${cur.exp}`;
+
+ if(isM&&S.lives<=0){
+  $('fb').innerHTML+=`<br><b style="color:var(--bad);font-size:1.15rem">💀 ¡MARÍA NO TUVO PIEDAD! Te has quedado sin vidas.</b>`;
+  $('btnNext').textContent='Ver veredicto final 💀';
+  $('btnNext').onclick=()=>endGame(true);
+  $('fb').classList.remove('hidden');$('btnNext').classList.remove('hidden');
+  renderHUD();
+  return;
+ }
+
  $('fb').classList.remove('hidden');$('btnNext').classList.remove('hidden');
+ $('btnNext').onclick=nextQ;
  $('btnNext').textContent=S.i>=bank.length-1?'Ver resultados 🏁':'Siguiente ➜';
  renderHUD();
 }
@@ -438,19 +583,50 @@ function chConnect(){
 }
 
 /* ============ FINAL ============ */
-function endGame(){
+function endGame(outOfLives=false){
  stopTimer();$('game').classList.add('hidden');$('end').classList.remove('hidden');
- const g=S.grade,medal=g>=4.8?'🏆':g>=4?'🥇':g>=3?'🥈':'🥉';
- const msg=g>=4.8?'¡LEYENDA DE LAS EXTENSIONES!':g>=4?'¡Excelente batalla!':g>=3?'¡Aprobaste! Puedes mejorar.':'Sigue entrenando, ¡la revancha te espera!';
+ const g=S.grade;
+ const isM=S.mode==='maria';
+ let medal=g>=4.8?'🏆':g>=4?'🥇':g>=3?'🥈':'🥉';
+ let msg=g>=4.8?'¡LEYENDA DE LAS EXTENSIONES!':g>=4?'¡Excelente batalla!':g>=3?'¡Aprobaste! Puedes mejorar.':'Sigue entrenando, ¡la revancha te espera!';
+ 
+ if(isM){
+  if(outOfLives){
+   medal='💀';
+   msg='¡MARÍA NO TUVO PIEDAD! Te quedaste sin vidas.';
+  }else if(g>=4.8){
+   medal='👑';
+   msg='¡HONOR Y GLORIA: DOMINASTE EL MODO MARÍA!';
+  }else if(g>=3.0){
+   medal='🔥';
+   msg='¡SOBREVIVISTE AL MODO MARÍA!';
+  }else{
+   medal='⚠️';
+   msg='MODO MARÍA: Necesitas más entrenamiento forense.';
+  }
+ }
+
  const h=S.hist,n=Math.max(h.length-1,1),pts=h.map((v,i)=>`${(i/n*296+2).toFixed(1)},${(78-(v-1)/4*74).toFixed(1)}`).join(' ');
+ const rankName=isM?`[🔥María] ${S.name}`.slice(0,24):S.name;
+
  $('end').innerHTML=`<div class="medal">${medal}</div><h1>${msg}</h1>
- <p style="font-size:1.1rem">${esc(S.name)}, tu nota final es</p><div class="grade ${gradeClass(g)}" style="font-size:4.5rem">${g.toFixed(2)}</div>
- <p>✅ Aciertos: <b>${S.ok}</b> · ❌ Errores: <b>${S.bad}</b> · 🔥 Mejor racha: <b>${S.best}</b> · ⭐ Puntos sobrantes: <b>${S.pts}</b><br>Nota más alta alcanzada: <b>${S.peak.toFixed(2)}</b></p>
+ <p style="font-size:1.1rem">${esc(S.name)}, tu nota final en <b>${isM?'Modo María 🔥':'Modo Clásico ⚔️'}</b> es</p>
+ <div class="grade ${gradeClass(g)}" style="font-size:4.5rem">${g.toFixed(2)}</div>
+ <p>✅ Aciertos: <b>${S.ok}</b> · ❌ Errores: <b>${S.bad}</b> · 🔥 Mejor racha: <b>${S.best}</b> · ⭐ Puntos sobrantes: <b>${S.pts}</b><br>
+ ${isM?`❤️ Vidas restantes: <b>${Math.max(0,S.lives)}/3</b> · `:''}Nota máxima alcanzada: <b>${S.peak.toFixed(2)}</b></p>
  <svg viewBox="0 0 300 80" style="width:100%;height:110px;background:#0004;border-radius:12px"><polyline points="${pts}" fill="none" stroke="#ffd24a" stroke-width="2.5"/></svg>
-<h3>🏅 Ranking general</h3><div id="rank" style="text-align:left">Guardando tu intento…</div><br>
-<button class="big" id="again">🔁 Jugar otra vez (nuevas preguntas al azar)</button>`;
-$('again').onclick=()=>newGame(S.name);
-saveAttempt(S.name,g,S.ok,S.bad,S.best).then(()=>showRanking('rank',S.name));
+ <h3>🏅 Ranking general</h3><div id="rank" style="text-align:left">Guardando tu intento…</div><br>
+ <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+  <button class="big" id="againSame">🔁 Jugar de nuevo (${isM?'Modo María':'Clásico'})</button>
+  <button class="big" id="againOther" style="background:var(--card2)">🔄 Cambiar de Modo</button>
+ </div>`;
+
+ $('againSame').onclick=()=>newGame(S.name,S.mode);
+ $('againOther').onclick=()=>{
+  $('end').classList.add('hidden');
+  $('start').classList.remove('hidden');
+ };
+ saveAttempt(rankName,g,S.ok,S.bad,S.best).then(()=>showRanking('rank',rankName));
 }
 
 /* ============ RANKING COMPARTIDO (Firebase Firestore vía REST) ============ */
@@ -602,7 +778,17 @@ function openRanking(){
 
 /* ============ EVENTOS ============ */
 $('pname').value=localStorage.getItem('extQuestName')||'';
-$('btnStart').onclick=()=>{const n=$('pname').value.trim()||'Jugador';localStorage.setItem('extQuestName',n);newGame(n)};
+$('btnStart').onclick=()=>{
+ const n=$('pname').value.trim()||'Jugador';
+ localStorage.setItem('extQuestName',n);
+ newGame(n, 'normal');
+};
+const btnM=$('btnMaria');
+if(btnM) btnM.onclick=()=>{
+ const n=$('pname').value.trim()||'Jugador';
+ localStorage.setItem('extQuestName',n);
+ newGame(n, 'maria');
+};
 $('btnRank').onclick=openRanking;
 const bsr=$('btnShopRank'); if(bsr) bsr.onclick=openRanking;
 $('btnNext').onclick=nextQ;

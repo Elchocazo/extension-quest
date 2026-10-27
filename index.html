@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extensión Quest – Batalla por el 5.0</title>
+<style>
+:root{--bg:#0f1226;--card:#1a1f3d;--card2:#232a52;--txt:#eef1ff;--mut:#9aa3d6;--ok:#2ee59d;--bad:#ff5470;--gold:#ffd24a;--acc:#7c5cff}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;background:radial-gradient(circle at 20% 0,#27205a,var(--bg) 60%);color:var(--txt);min-height:100vh}
+button{font:inherit;cursor:pointer;border:0;color:inherit}
+.hidden{display:none!important}
+.wrap{max-width:1100px;margin:auto;padding:14px}
+h1{margin:0;font-size:1.6rem}
+.card{background:var(--card);border-radius:18px;padding:16px;box-shadow:0 6px 20px #0006}
+/* inicio */
+#start{text-align:center;max-width:640px;margin:6vh auto}
+#start h1{font-size:2.3rem;background:linear-gradient(90deg,var(--gold),#ff7ad9);-webkit-background-clip:text;background-clip:text;color:transparent}
+#start input{padding:12px 16px;border-radius:12px;border:2px solid var(--acc);background:var(--card2);color:var(--txt);font-size:1.1rem;width:80%;margin:14px 0;text-align:center}
+.big{background:linear-gradient(90deg,var(--acc),#ff5fa2);padding:14px 30px;border-radius:14px;font-size:1.2rem;font-weight:700;transition:.15s}
+.big:hover{transform:scale(1.05)}
+.rules{text-align:left;color:var(--mut);line-height:1.6;font-size:.95rem}
+/* HUD */
+#hud{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:800px){#hud{grid-template-columns:1fr}}
+.gradebox{position:relative}
+.grade{font-size:3.2rem;font-weight:800;line-height:1;transition:color .3s}
+.g-low{color:var(--bad)}.g-mid{color:var(--gold)}.g-high{color:var(--ok)}
+.bar{height:14px;background:#0006;border-radius:9px;overflow:hidden;margin:8px 0 2px}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--bad),var(--gold),var(--ok));transition:width .5s}
+.pass{font-size:.75rem;color:var(--mut);display:flex;justify-content:space-between}
+.delta{position:absolute;right:14px;top:10px;font-size:1.6rem;font-weight:800;opacity:0;pointer-events:none}
+.delta.show{animation:fl 1.3s ease-out}
+@keyframes fl{0%{opacity:1;transform:translateY(10px)}100%{opacity:0;transform:translateY(-40px)}}
+.stat{font-size:1.4rem;font-weight:700}
+.lbl{font-size:.8rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.badge{background:var(--card2);padding:3px 9px;border-radius:99px;font-size:.85rem}
+#spark{width:100%;height:60px;display:block}
+/* juego */
+#main{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+@media(max-width:800px){#main{grid-template-columns:1fr}}
+.qhead{display:flex;justify-content:space-between;color:var(--mut);font-size:.9rem}
+.timer{height:8px;background:#0006;border-radius:9px;overflow:hidden;margin:8px 0}
+.timer>i{display:block;height:100%;background:var(--acc);width:100%}
+.visual{display:flex;flex-direction:column;align-items:center;gap:6px;margin:10px 0;min-height:150px;justify-content:center}
+.visual svg{width:120px;height:144px;filter:drop-shadow(0 6px 8px #0008);animation:pop .4s}
+@keyframes pop{from{transform:scale(.6) rotate(-8deg);opacity:0}}
+.fname{font-family:Consolas,monospace;font-size:1.15rem;background:#0005;padding:4px 12px;border-radius:8px}
+.qtext{font-size:1.2rem;text-align:center;margin:6px 0 12px;font-weight:600}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{background:var(--card2);padding:14px;border-radius:12px;font-size:1.05rem;font-weight:600;border:2px solid transparent;transition:.15s}
+.opt.ext{font-family:Consolas,monospace;font-size:1.3rem}
+.opt:hover:not(:disabled){border-color:var(--acc);transform:translateY(-2px)}
+.opt.right{background:#0e5c3d;border-color:var(--ok)}
+.opt.wrong{background:#6a1b2b;border-color:var(--bad)}
+.opt:disabled{cursor:default;opacity:.55}.opt.right:disabled,.opt.wrong:disabled{opacity:1}
+.opt.gone{visibility:hidden}
+#fb{margin-top:12px;padding:12px;border-radius:12px;background:#0004;line-height:1.4}
+#fb b.ok{color:var(--ok)}#fb b.bad{color:var(--bad)}
+.next{margin-top:10px;background:var(--acc);padding:10px 22px;border-radius:12px;font-weight:700}
+/* tienda */
+.shop h3{margin:0 0 8px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--card2);padding:9px 11px;border-radius:12px;margin-bottom:8px;width:100%;text-align:left}
+.item small{display:block;color:var(--mut);font-size:.78rem}
+.item .price{background:var(--gold);color:#222;font-weight:800;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.item:disabled{opacity:.4;cursor:not-allowed}
+.item:hover:not(:disabled){outline:2px solid var(--gold)}
+/* modal */
+#modal{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;z-index:10;padding:14px}
+#modal .box{background:var(--card);border-radius:20px;padding:20px;max-width:560px;width:100%;max-height:92vh;overflow:auto;text-align:center}
+.chal-title{font-size:1.4rem;font-weight:800;color:var(--gold)}
+.names{display:grid;gap:8px;margin:12px 0}
+.names button,.tf button{background:var(--card2);padding:12px;border-radius:10px;font-family:Consolas,monospace;font-size:1.05rem}
+.tf{display:flex;gap:10px;justify-content:center;margin-top:12px}
+.tf button{font-family:inherit;font-weight:700;min-width:120px}
+.conn{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.conn button{background:var(--card2);padding:8px;border-radius:12px;border:3px solid transparent;font-family:Consolas,monospace;font-size:1.2rem;display:flex;justify-content:center;align-items:center}
+.conn button svg{width:62px;height:74px}
+.conn button.sel{border-color:var(--gold)}
+.conn button.done{opacity:.35;border-color:var(--ok)}
+/* final */
+#end{max-width:700px;margin:4vh auto;text-align:center}
+.medal{font-size:4rem}
+table{width:100%;border-collapse:collapse;margin-top:8px}td,th{padding:5px;border-bottom:1px solid #fff2;text-align:left}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- PANTALLA INICIAL -->
+<section id="start" class="card">
+  <div style="font-size:3rem">🛡️📂⚔️</div>
+  <h1>Extensión Quest</h1>
+  <p>¡Conecta cada archivo con su extensión y pelea por el <b>5.0</b>!</p>
+  <input id="pname" maxlength="24" placeholder="Tu nombre de guerrero/a">
+  <div class="rules">
+    🎯 Empiezas con nota <b>1.0</b>. Acierto: sube tu nota y ganas puntos. Error: <b>baja la nota</b> y pierdes puntos.<br>
+    🔥 Las rachas dan nota y puntos extra.<br>
+    🛒 Gasta tus puntos en <b>escudos</b>, retos de <b>inmunidad</b>, pistas, doble puntos y más.<br>
+    ⏱️ Tienes 25 segundos por pregunta. 50 preguntas al azar en cada partida.
+  </div><br>
+  <button class="big" id="btnStart">¡Comenzar batalla!</button>
+</section>
+
+<!-- JUEGO -->
+<section id="game" class="hidden">
+  <div id="hud">
+    <div class="card gradebox">
+      <div class="lbl">Tu calificación</div>
+      <div class="grade g-low" id="grade">1.00</div>
+      <div class="bar"><i id="gbar" style="width:0"></i></div>
+      <div class="pass"><span>1.0</span><span>3.0 aprueba</span><span>5.0 🏆</span></div>
+      <div class="delta" id="delta"></div>
+    </div>
+    <div class="card">
+      <div class="lbl">Puntos</div><div class="stat">⭐ <span id="pts">0</span></div>
+      <div class="lbl" style="margin-top:6px">Racha</div><div class="stat">🔥 <span id="streak">0</span></div>
+      <div class="badges" id="badges"></div>
+    </div>
+    <div class="card">
+      <div class="lbl">Evolución de la nota</div>
+      <svg id="spark" viewBox="0 0 300 60" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+
+  <div id="main">
+    <div class="card">
+      <div class="qhead"><span id="qnum"></span><span id="qtype"></span></div>
+      <div class="timer"><i id="tbar"></i></div>
+      <div class="visual" id="visual"></div>
+      <div class="qtext" id="qtext"></div>
+      <div class="opts" id="opts"></div>
+      <div id="fb" class="hidden"></div>
+      <div style="text-align:center"><button class="next hidden" id="btnNext">Siguiente ➜</button></div>
+    </div>
+    <div class="card shop">
+      <h3>🛒 Tienda de poderes</h3>
+      <div id="shop"></div>
+      <button class="item" style="justify-content:center" id="btnEnd">🏳️ Terminar partida</button>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL -->
+<section id="end" class="card hidden"></section>
+</div>
+
+<div id="modal" class="hidden"><div class="box" id="mbox"></div></div>
+
+<script>
+"use strict";
+/* ============ DATOS ============ */
+const $=id=>document.getElementById(id);
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const pick=a=>a[Math.random()*a.length|0];
+
+const EXT={
+ docx:{cat:'doc',c:'#2b6cd9',d:'Documento de Word basado en XML: editable y con formato enriquecido.',clue:'Quiero redactar un trabajo con negritas, colores y formato en Word.'},
+ xlsx:{cat:'doc',c:'#1e8e4e',d:'Libro de Excel: fórmulas, datos y tablas.',clue:'Necesito una hoja de cálculo con fórmulas y tablas de datos.'},
+ pptx:{cat:'doc',c:'#d9532b',d:'Presentación de PowerPoint: diapositivas, multimedia y diseño visual.',clue:'Voy a exponer en clase con diapositivas y diseño visual.'},
+ pdf:{cat:'doc',c:'#d32f2f',d:'Portable Document Format: conserva el diseño idéntico en cualquier dispositivo; no se edita directamente.',clue:'Debe verse idéntico en cualquier dispositivo y no ser editable de forma directa.'},
+ txt:{cat:'doc',c:'#6b7280',d:'Texto plano: sin negritas, colores ni estilos.',clue:'Texto plano, sin negritas, colores ni estilos tipográficos.'},
+ jpg:{cat:'img',c:'#0ea5e9',d:'Imagen comprimida con pérdida de calidad, ideal para fotografías.',clue:'Fotografía de alta definición comprimida con pérdida de calidad.'},
+ png:{cat:'img',c:'#8b5cf6',d:'Imagen sin pérdida que soporta transparencias; muy usada en infografías y web.',clue:'Imagen sin pérdida de calidad que soporta fondos transparentes.'},
+ gif:{cat:'img',c:'#ec4899',d:'Soporta animaciones cortas en bucle con una paleta de 256 colores.',clue:'Animación corta en bucle con paleta de solo 256 colores.'},
+ svg:{cat:'img',c:'#f59e0b',d:'Gráfico vectorial escalable: no pierde nitidez al agrandarlo.',clue:'Gráfico vectorial que no pierde nitidez al aumentar su tamaño.'},
+ mp3:{cat:'av',c:'#14b8a6',d:'Estándar universal de audio digital con compresión acústica.',clue:'Audio digital comprimido, el estándar universal para música.'},
+ wav:{cat:'av',c:'#0d9488',d:'Audio crudo sin compresión: máxima fidelidad y gran tamaño.',clue:'Audio crudo, sin compresión, de máxima fidelidad y mucho peso.'},
+ mp4:{cat:'av',c:'#e11d48',d:'Contenedor estándar de video de alta compresión y compatibilidad universal.',clue:'Video de alta compresión que se reproduce en casi cualquier dispositivo.'},
+ avi:{cat:'av',c:'#9333ea',d:'Video de alta calidad usado habitualmente en entornos de edición previa.',clue:'Video de alta calidad que se usa en edición previa.'},
+ zip:{cat:'zip',c:'#ca8a04',d:'Contenedor que reduce el tamaño de archivos y carpetas para enviarlos y guardarlos.',clue:'Contenedor comprimido muy popular que Windows abre sin programas extra.'},
+ rar:{cat:'zip',c:'#7c3aed',d:'Contenedor comprimido (suele necesitar WinRAR u otro programa).',clue:'Contenedor comprimido que normalmente requiere WinRAR para abrirse.'},
+ exe:{cat:'exe',c:'#374151',d:'Ejecutable binario: inicia la instalación o funcionamiento de un programa en Windows.',clue:'Binario ejecutable que instala o inicia un programa en Windows.'}
+};
+const PARTNER={zip:'rar',rar:'zip'};
+const NAMES={doc:['Actividad_Clase_6','Informe_Ciencias','Tarea_Sociales','Presupuesto_Feria','Exposicion_Medio_Ambiente'],
+ img:['Vacaciones_Cartagena','Selfie_Cumple','Logo_Colegio','Meme_Graciosillo','Mapa_Colombia'],
+ av:['Cancion_Favorita','Video_Proyecto','Gol_Del_Partido','Nota_De_Voz','Trailer_Pelicula'],
+ zip:['Fotos_Paseo','Trabajos_Octavo','Backup_Tareas'],exe:['Instalador_Juego','Setup_Navegador','Programa_Nuevo']};
+
+/* ============ ICONOS SVG (sin mostrar la extensión) ============ */
+function icon(ext){
+ const e=EXT[ext],c=e.c;let g='';
+ const T=(t,s=44)=>`<text x="50" y="${70+s/4}" font-size="${s}" font-weight="800" fill="#fff" text-anchor="middle" font-family="Segoe UI,Arial">${t}</text>`;
+ switch(ext){
+  case 'docx':g=T('W');break;
+  case 'xlsx':g=T('X');break;
+  case 'pptx':g=T('P');break;
+  case 'pdf':g=`<path d="M30 85 C45 40 55 40 50 60 S35 90 70 70" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"/>`;break;
+  case 'txt':g=[45,58,71,84,97].map((y,i)=>`<rect x="24" y="${y}" width="${i==4?30:52}" height="5" rx="2" fill="#fff"/>`).join('');break;
+  case 'jpg':g=`<rect x="18" y="42" width="64" height="56" rx="4" fill="#7dd3fc"/><circle cx="68" cy="58" r="7" fill="#fde047"/><path d="M18 98 L38 66 L52 84 L62 72 L82 98Z" fill="#166534"/>`;break;
+  case 'png':g=`<rect x="18" y="42" width="64" height="56" rx="4" fill="#fff"/>`+[0,1,2,3,4,5,6,7].flatMap(r=>[0,1,2,3,4,5,6,7].filter(k=>(r+k)%2==0).map(k=>`<rect x="${18+k*8}" y="${42+r*7}" width="8" height="7" fill="#cbd5e1"/>`)).join('')+`<path d="M50 52 L55 66 L70 66 L58 75 L63 90 L50 81 L37 90 L42 75 L30 66 L45 66Z" fill="${c}"/>`;break;
+  case 'gif':g=`<rect x="18" y="46" width="64" height="48" rx="6" fill="#fff"/><circle cx="40" cy="66" r="9" fill="#fbbf24"/><circle cx="36" cy="64" r="1.6"/><circle cx="44" cy="64" r="1.6"/><path d="M35 69 Q40 74 45 69" stroke="#000" fill="none"/><path d="M62 58 a12 12 0 1 1 -3 8" stroke="${c}" stroke-width="5" fill="none"/><path d="M54 62 l8-8 2 10z" fill="${c}"/>`;break;
+  case 'svg':g=`<path d="M20 90 C30 40 70 40 80 90" stroke="#fff" stroke-width="4" fill="none"/><line x1="20" y1="90" x2="35" y2="55" stroke="#fff" stroke-dasharray="3"/><rect x="16" y="86" width="9" height="9" fill="#fff"/><rect x="76" y="86" width="9" height="9" fill="#fff"/><circle cx="35" cy="55" r="5" fill="#fde047"/><circle cx="65" cy="55" r="5" fill="#fde047"/>`;break;
+  case 'mp3':g=`<path d="M40 90V52l30-8v38" stroke="#fff" stroke-width="6" fill="none"/><ellipse cx="34" cy="90" rx="9" ry="7" fill="#fff"/><ellipse cx="64" cy="82" rx="9" ry="7" fill="#fff"/>`;break;
+  case 'wav':g=[0,1,2,3,4,5,6,7].map(i=>{const h=[10,24,40,28,46,20,32,12][i];return `<rect x="${20+i*8.5}" y="${70-h/2}" width="5" height="${h}" rx="2" fill="#fff"/>`}).join('');break;
+  case 'mp4':g=`<rect x="16" y="44" width="68" height="50" rx="6" fill="#fff" opacity=".95"/><path d="M42 56 L64 69 L42 82Z" fill="${c}"/>`;break;
+  case 'avi':g=`<rect x="20" y="42" width="60" height="56" fill="#111"/>`+[0,1,2,3,4].map(i=>`<rect x="23" y="${46+i*10.5}" width="6" height="6" fill="#fff"/><rect x="71" y="${46+i*10.5}" width="6" height="6" fill="#fff"/>`).join('')+`<rect x="34" y="46" width="32" height="22" fill="#a78bfa"/><rect x="34" y="72" width="32" height="22" fill="#f0abfc"/>`;break;
+  case 'zip':g=`<rect x="46" y="38" width="8" height="64" fill="#fff" opacity=".4"/>`+[0,1,2,3,4,5,6].map(i=>`<rect x="${i%2?50:42}" y="${42+i*8}" width="8" height="5" fill="#fff"/>`).join('')+`<rect x="42" y="96" width="16" height="12" rx="4" fill="#222"/>`;break;
+  case 'rar':g=`<rect x="22" y="78" width="56" height="14" rx="2" fill="#fff"/><rect x="26" y="62" width="48" height="14" rx="2" fill="#fde68a"/><rect x="30" y="46" width="40" height="14" rx="2" fill="#fff"/><path d="M26 85h48M30 69h40M34 53h32" stroke="${c}" stroke-width="2"/>`;break;
+  case 'exe':g=`<rect x="16" y="42" width="68" height="54" rx="5" fill="#fff"/><rect x="16" y="42" width="68" height="11" rx="5" fill="#2563eb"/><circle cx="50" cy="75" r="12" fill="none" stroke="#374151" stroke-width="7" stroke-dasharray="5 3.4"/><circle cx="50" cy="75" r="5" fill="#374151"/>`;break;
+ }
+ return `<svg viewBox="0 0 100 120"><path d="M8 6h62l24 24v84a6 6 0 0 1-6 6H14a6 6 0 0 1-6-6V12a6 6 0 0 1 6-6z" fill="${c}"/><path d="M70 6v18a6 6 0 0 0 6 6h18z" fill="#fff" opacity=".4"/>${g}</svg>`;
+}
+const unknownIcon=`<svg viewBox="0 0 100 120"><path d="M8 6h62l24 24v84a6 6 0 0 1-6 6H14a6 6 0 0 1-6-6V12a6 6 0 0 1 6-6z" fill="#475569"/><path d="M70 6v18a6 6 0 0 0 6 6h18z" fill="#fff" opacity=".4"/><text x="50" y="86" font-size="60" font-weight="800" fill="#fff" text-anchor="middle">?</text></svg>`;
+
+/* ============ BANCO DE 50 PREGUNTAS ============ */
+function extOptions(ext){
+ const others=Object.keys(EXT).filter(k=>k!==ext&&k!==PARTNER[ext]);
+ const same=shuffle(others.filter(k=>EXT[k].cat===EXT[ext].cat)),diff=shuffle(others.filter(k=>EXT[k].cat!==EXT[ext].cat));
+ return shuffle([ext,...same.slice(0,2),...diff].slice(0,4).map(String)).slice(0,4);
+}
+const CONCEPT=[
+ ['¿Qué es una extensión de archivo?','Cadena corta de caracteres al final del nombre, tras un punto',['Una carpeta especial','El tamaño del archivo','Un virus informático'],'Es el sufijo (2 a 4 letras) que indica el formato del archivo.'],
+ ['¿Qué símbolo separa el nombre de la extensión?','El punto (.)',['La coma (,)','El guion (-)','La barra (/)'],'El punto es el delimitador.'],
+ ['En "Actividad_Clase_6.docx", ¿cuál es la extensión?','docx',['Actividad_Clase_6','Clase_6','.'],'Lo que va después del punto: docx.'],
+ ['¿Qué le comunica la extensión al sistema operativo?','El formato del archivo y qué programa debe abrirlo',['La fecha de creación','Quién es el dueño','La velocidad del PC'],'Así Windows sabe con qué programa abrirlo.'],
+ ['¿Por qué Windows oculta por defecto las extensiones conocidas?','Para evitar que principiantes las borren por accidente',['Porque no sirven para nada','Para ahorrar memoria','Porque son secretas'],'Es una protección para novatos, pero conviene verlas.'],
+ ['Para ver las extensiones, ¿en qué menú del Explorador vas?','Vista',['Inicio','Compartir','Archivo > Imprimir'],'Explorador > Vista > Mostrar u ocultar.'],
+ ['¿Cuál es el atajo para abrir el Explorador de archivos?','Win + E',['Ctrl + Z','Alt + F4','Win + L'],'Win + E abre el Explorador.'],
+ ['¿Qué casilla debes marcar en Mostrar/Ocultar?','Extensiones de nombre de archivo',['Elementos ocultos','Panel de vista previa','Casillas de elemento'],'Esa casilla muestra las extensiones.'],
+ ['Si renombras "foto.png" a "foto.mp3" a mano, ¿qué pasa?','No se convierte; solo se rompe la comunicación con el programa lector',['Se convierte en audio','Se vuelve más pequeño','Se arregla solo'],'Cambiar el nombre no cambia la estructura interna.'],
+ ['¿Cómo se cambia de formato realmente un archivo?','Con Exportar o Guardar como',['Borrando la extensión','Cambiando solo el nombre','Reiniciando el PC'],'Exportar / Guardar como convierte de verdad.'],
+ ['¿Cuál es la extensión real de "foto.jpg.exe"?','.exe',['.jpg','.foto','Ninguna'],'Cuenta la última: es un ejecutable disfrazado.'],
+ ['¿Qué pasa al hacer doble clic en un .exe desconocido?','Autorizas al sistema a ejecutar código potencialmente dañino',['Se abre una foto','Se comprime el archivo','Nada, es inofensivo'],'Puede instalar malware.'],
+ ['Tu archivo "tarea.docx" se queda sin extensión por error. ¿Qué ocurre?','Windows pierde el vínculo con el programa lector',['Se borra el archivo','Se convierte a PDF','Se abre más rápido'],'Queda temporalmente inaccesible hasta restaurarla.'],
+ ['Necesitas un logo con fondo transparente para una web. ¿Qué eliges?','.png',['.jpg','.wav','.txt'],'PNG soporta transparencias.'],
+ ['¿Qué caracteriza a un archivo PDF?','Conserva el diseño idéntico en cualquier dispositivo',['Se edita fácil con Paint','Solo guarda audio','Es un ejecutable'],'Por eso se usa para compartir documentos finales.'],
+ ['¿Puede un archivo .txt guardar texto en negrita o de colores?','No, es texto plano',['Sí, con todos los estilos','Solo en azul','Solo si pesa mucho'],'Texto plano = sin estilos.'],
+ ['¿Para qué sirven los archivos .zip y .rar?','Reducir el tamaño de archivos y carpetas para enviarlos',['Reproducir música','Editar fotos','Navegar en internet'],'Son contenedores comprimidos.'],
+ ['¿Cuál pesa más: una canción en .wav o en .mp3?','.wav, porque no tiene compresión',['.mp3, porque tiene más calidad','Pesan exactamente igual','Depende del color'],'WAV es audio crudo.']
+];
+function buildBank(){
+ const q=[];
+ for(const ext in EXT){
+  q.push({t:'icon',ext,name:pick(NAMES[EXT[ext].cat]),opts:extOptions(ext).map(x=>'.'+x),ans:'.'+ext,exp:EXT[ext].d});
+  q.push({t:'clue',ext,opts:extOptions(ext).map(x=>'.'+x),ans:'.'+ext,exp:EXT[ext].d,txt:EXT[ext].clue});
+ }
+ CONCEPT.forEach(([txt,a,w,e])=>q.push({t:'concept',txt,opts:shuffle([a,...w]),ans:a,exp:e}));
+ return q;
+}
+
+/* ============ TIENDA ============ */
+const SHOP=[
+ {id:'shield',ico:'🛡️',n:'Escudo',d:'Bloquea tu próximo error (máx. 3)',p:40},
+ {id:'immun',ico:'🧪',n:'Reto de inmunidad',d:'Supera el reto: 3 preguntas sin perder nota',p:30},
+ {id:'double',ico:'⚡',n:'Doble puntos',d:'x2 puntos durante 5 preguntas',p:50},
+ {id:'fifty',ico:'🔍',n:'Pista 50/50',d:'Elimina 2 opciones incorrectas',p:25},
+ {id:'skip',ico:'⏭️',n:'Salto',d:'Pasa la pregunta sin penalización',p:30},
+ {id:'heal',ico:'❤️‍🩹',n:'Poción de nota',d:'Recupera +0.30 de nota',p:90}
+];
+
+/* ============ ESTADO ============ */
+let S,bank,cur,answered,tleft,tint,paused;
+const TIME=25;
+function clamp(x){return Math.max(1,Math.min(5,x))}
+
+function newGame(name){
+ S={name,grade:1,pts:0,shield:0,immun:0,dbl:0,streak:0,best:0,ok:0,bad:0,i:-1,hist:[1],used:0,peak:1};
+ bank=shuffle(buildBank());
+ $('start').classList.add('hidden');$('end').classList.add('hidden');$('game').classList.remove('hidden');
+ renderHUD();renderShop();nextQ();
+}
+/* ============ HUD ============ */
+function gradeClass(g){return g>=4?'g-high':g>=3?'g-mid':'g-low'}
+function renderHUD(){
+ $('grade').textContent=S.grade.toFixed(2);$('grade').className='grade '+gradeClass(S.grade);
+ $('gbar').style.width=((S.grade-1)/4*100)+'%';
+ $('pts').textContent=S.pts;$('streak').textContent=S.streak;
+ $('badges').innerHTML=(S.shield?`<span class="badge">🛡️ x${S.shield}</span>`:'')+(S.immun?`<span class="badge">🧪 Inmune ${S.immun}</span>`:'')+(S.dbl?`<span class="badge">⚡ x2 (${S.dbl})</span>`:'');
+ // sparkline
+ const h=S.hist,n=Math.max(h.length-1,1),pts=h.map((v,i)=>`${(i/n*296+2).toFixed(1)},${(58-(v-1)/4*54).toFixed(1)}`).join(' ');
+ $('spark').innerHTML=`<line x1="0" x2="300" y1="${58-2/4*54}" y2="${58-2/4*54}" stroke="#ffffff33" stroke-dasharray="4"/><polyline points="${pts}" fill="none" stroke="#ffd24a" stroke-width="2.5" stroke-linejoin="round"/>`;
+ renderShop();
+}
+function popDelta(txt,good){const d=$('delta');d.textContent=txt;d.style.color=good?'var(--ok)':'var(--bad)';d.classList.remove('show');void d.offsetWidth;d.classList.add('show')}
+function setGrade(delta){
+ const before=S.grade;S.grade=clamp(S.grade+delta);const real=S.grade-before;
+ S.peak=Math.max(S.peak,S.grade);S.hist.push(S.grade);
+ if(Math.abs(real)>0.001)popDelta((real>0?'+':'')+real.toFixed(2),real>0);
+ else if(delta>0)popDelta('¡MÁX!',true);
+}
+function renderShop(){
+ $('shop').innerHTML='';
+ SHOP.forEach(it=>{
+  const b=document.createElement('button');b.className='item';
+  let dis=S.pts<it.p||paused&&it.id!=='x';
+  if(it.id==='shield'&&S.shield>=3)dis=true;
+  if(it.id==='fifty'&&(answered||!cur||cur.used50))dis=true;
+  if(it.id==='skip'&&answered)dis=true;
+  if(it.id==='heal'&&S.grade>=4.9)dis=true;
+  b.disabled=dis||!!document.querySelector('#modal:not(.hidden)');
+  b.innerHTML=`<span>${it.ico} <b>${it.n}</b><small>${it.d}</small></span><span class="price">${it.p}</span>`;
+  b.onclick=()=>buy(it);$('shop').appendChild(b);
+ });
+}
+function buy(it){
+ if(S.pts<it.p)return;
+ if(it.id==='shield'){S.pts-=it.p;S.shield++;}
+ else if(it.id==='double'){S.pts-=it.p;S.dbl+=5;}
+ else if(it.id==='heal'){S.pts-=it.p;setGrade(.3);}
+ else if(it.id==='fifty'){S.pts-=it.p;cur.used50=true;
+   const wr=shuffle([...document.querySelectorAll('.opt')].filter(b=>b.dataset.v!==cur.ans)).slice(0,2);wr.forEach(b=>b.classList.add('gone'));}
+ else if(it.id==='skip'){S.pts-=it.p;stopTimer();finishQ(null,true);return;}
+ else if(it.id==='immun'){S.pts-=it.p;renderHUD();startChallenge();return;}
+ renderHUD();
+}
+
+/* ============ PREGUNTAS ============ */
+function nextQ(){
+ S.i++;if(S.i>=bank.length)return endGame();
+ cur=bank[S.i];answered=false;
+ $('fb').classList.add('hidden');$('btnNext').classList.add('hidden');
+ $('qnum').textContent=`Pregunta ${S.i+1} / ${bank.length}`;
+ const v=$('visual');
+ if(cur.t==='icon'){$('qtype').textContent='🖼️ Identifica el archivo';
+  v.innerHTML=icon(cur.ext)+`<div class="fname">${cur.name}<span style="color:var(--gold)">.???</span></div>`;
+  $('qtext').textContent='¿Cuál es la extensión de este archivo?';}
+ else if(cur.t==='clue'){$('qtype').textContent='🔗 Conecta con su extensión';
+  v.innerHTML=unknownIcon;$('qtext').textContent=cur.txt;}
+ else{$('qtype').textContent='🧠 Concepto';v.innerHTML='<div style="font-size:3rem">🤔</div>';$('qtext').textContent=cur.txt;}
+ const o=$('opts');o.innerHTML='';
+ cur.opts.forEach(t=>{const b=document.createElement('button');b.className='opt'+(cur.t!=='concept'?' ext':'');b.textContent=t;b.dataset.v=t;b.onclick=()=>answer(b);o.appendChild(b)});
+ cur.used50=false;renderShop();startTimer();
+}
+function startTimer(){
+ stopTimer();tleft=TIME;paused=false;
+ tint=setInterval(()=>{ if(document.querySelector('#modal:not(.hidden)'))return;
+  tleft-=.1;$('tbar').style.width=(tleft/TIME*100)+'%';$('tbar').style.background=tleft<6?'var(--bad)':'var(--acc)';
+  if(tleft<=0){stopTimer();finishQ(null,false,true)}},100);
+}
+function stopTimer(){clearInterval(tint)}
+function answer(btn){
+ if(answered)return;stopTimer();
+ finishQ(btn.dataset.v===cur.ans?true:false,false,false,btn);
+}
+function finishQ(ok,skipped,timeout,btn){
+ answered=true;S.used++;
+ document.querySelectorAll('.opt').forEach(b=>{b.disabled=true;if(b.dataset.v===cur.ans)b.classList.add('right')});
+ if(btn&&!ok)btn.classList.add('wrong');
+ let msg='';
+ if(skipped){msg=`<b>⏭️ Saltaste.</b> Era <b>${cur.ans}</b>.`;}
+ else if(ok){
+  S.ok++;S.streak++;S.best=Math.max(S.best,S.streak);
+  let gain=10+2*Math.min(S.streak,5);if(S.dbl>0)gain*=2;
+  S.pts+=gain;setGrade(.12+(S.streak>=3?.03:0));
+  msg=`<b class="ok">✅ ¡Correcto!</b> +${gain} puntos${S.streak>=3?' 🔥 ¡racha!':''}${S.dbl>0?' ⚡':''}`;
+ }else{
+  S.bad++;S.streak=0;
+  const why=timeout?'⏰ ¡Se acabó el tiempo!':'❌ Incorrecto.';
+  if(S.immun>0){msg=`<b class="bad">${why}</b> 🧪 Tu inmunidad te protegió: no pierdes nada.`;}
+  else if(S.shield>0){S.shield--;msg=`<b class="bad">${why}</b> 🛡️ ¡Tu escudo absorbió el golpe!`;}
+  else{const lose=Math.min(5,S.pts);S.pts-=lose;setGrade(-.2);msg=`<b class="bad">${why}</b> −0.20 de nota${lose?` y −${lose} puntos`:''}.`;}
+ }
+ if(S.immun>0)S.immun--;if(S.dbl>0)S.dbl--;
+ const ca=cur.t==='concept'?cur.ans:cur.ans;
+ $('fb').innerHTML=`${msg}<br>Respuesta: <b>${ca}</b> — ${cur.exp}`;
+ $('fb').classList.remove('hidden');$('btnNext').classList.remove('hidden');
+ $('btnNext').textContent=S.i>=bank.length-1?'Ver resultados 🏁':'Siguiente ➜';
+ renderHUD();
+}
+
+/* ============ RETOS DE INMUNIDAD ============ */
+const IMPOSTOR=[
+ ['Tarea_Ciencias.docx','Foto_Familia.png','Cancion.mp3','Juego_Gratis.jpg.exe'],
+ ['Resumen.pdf','Exposicion.pptx','Video_Divertido.mp4.exe','Notas.txt'],
+ ['Fondo_Pantalla.jpg','Presupuesto.xlsx','Informe.pdf.exe','Logo.svg'],
+ ['Meme.gif','Audio.wav','Trabajo.docx.exe','Fotos.zip'],
+ ['Examen.pdf','Foto_Cumple.png.exe','Mapa.svg','Tarea.txt']];
+const VF=[
+ ['Una extensión suele tener entre 2 y 4 letras.',true],
+ ['Un archivo .png NO soporta transparencias.',false],
+ ['Un .wav pesa más que un .mp3.',true],
+ ['Renombrar .png a .jpg convierte realmente la imagen.',false],
+ ['El .svg pierde nitidez al agrandarlo.',false],
+ ['Un .gif puede contener animaciones cortas en bucle.',true],
+ ['Los .txt guardan texto con negritas y colores.',false],
+ ['Para ver extensiones se usa Explorador > Vista.',true],
+ ['Un archivo "foto.jpg.exe" es una foto segura.',false],
+ ['.zip y .rar sirven para comprimir archivos.',true],
+ ['El .pdf se ve idéntico en cualquier dispositivo.',true],
+ ['Abrir un .exe desconocido siempre es seguro.',false],
+ ['El .mp4 es un formato de video muy compatible.',true],
+ ['El .xlsx es de PowerPoint.',false]];
+function modal(html){$('mbox').innerHTML=html;$('modal').classList.remove('hidden');renderShop()}
+function closeModal(){$('modal').classList.add('hidden');renderShop()}
+function startChallenge(){
+ const t=pick(['imp','vf','con']);
+ if(t==='imp')chImpostor();else if(t==='vf')chVF();else chConnect();
+}
+function chEnd(win,extra){
+ if(win)S.immun+=3;
+ modal(`<div style="font-size:3rem">${win?'🏆':'💥'}</div><div class="chal-title">${win?'¡RETO SUPERADO!':'Reto fallido'}</div>
+ <p>${win?'🧪 Ganaste <b>inmunidad por 3 preguntas</b>: los errores no te quitan nota.':'Perdiste la entrada. ¡Suerte en la próxima!'}</p>${extra||''}
+ <button class="next" id="chOk">Volver al combate</button>`);
+ $('chOk').onclick=()=>{closeModal();renderHUD()};
+}
+function chImpostor(){
+ const sets=shuffle(IMPOSTOR).slice(0,3);let r=0,hits=0;
+ const show=()=>{
+  if(r>=3)return chEnd(hits>=2,`<p>Aciertos: ${hits}/3</p>`);
+  const names=shuffle(sets[r]);
+  modal(`<div class="chal-title">🕵️ Cazador de impostores (${r+1}/3)</div><p>Uno de estos archivos es <b>malware disfrazado</b> (doble extensión). ¡Tócalo! Necesitas 2 de 3.</p>
+  <div class="names">${names.map(n=>`<button data-n="${n}">${n}</button>`).join('')}</div>`);
+  $('mbox').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+   const bad=/\.\w+\.exe$/i.test(b.dataset.n);if(bad)hits++;
+   b.style.background=bad?'#0e5c3d':'#6a1b2b';
+   $('mbox').querySelectorAll('button').forEach(x=>{x.disabled=true;if(/\.\w+\.exe$/i.test(x.dataset.n))x.style.background='#0e5c3d'});
+   r++;setTimeout(show,1100)});
+ };show();
+}
+function chVF(){
+ const qs=shuffle(VF).slice(0,5);let r=0,hits=0;
+ const show=()=>{
+  if(r>=5)return chEnd(hits>=4,`<p>Aciertos: ${hits}/5</p>`);
+  modal(`<div class="chal-title">⚡ Relámpago Verdadero/Falso (${r+1}/5)</div><p>Necesitas 4 de 5.</p>
+  <div class="qtext">${qs[r][0]}</div><div class="tf"><button id="tv" style="background:#0e5c3d">✔ Verdadero</button><button id="tf" style="background:#6a1b2b">✘ Falso</button></div>`);
+  const res=v=>{if(v===qs[r][1])hits++;r++;show()};
+  $('tv').onclick=()=>res(true);$('tf').onclick=()=>res(false);
+ };show();
+}
+function chConnect(){
+ const exts=shuffle(['docx','xlsx','pptx','pdf','jpg','png','gif','svg','mp3','mp4','zip','exe']).slice(0,4);
+ let selI=null,done=0,errs=0;
+ const right=shuffle(exts);
+ modal(`<div class="chal-title">🔌 Conecta los archivos</div><p>Toca un archivo y luego su extensión. Máximo 2 errores.</p>
+ <div class="conn"><div style="display:grid;gap:8px" id="cl"></div><div style="display:grid;gap:8px" id="cr"></div></div><div id="cerr">Errores: 0/2</div>`);
+ exts.forEach(e=>{const b=document.createElement('button');b.dataset.e=e;b.innerHTML=icon(e);b.onclick=()=>{if(b.classList.contains('done'))return;
+  $('cl').querySelectorAll('button').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');selI=b};$('cl').appendChild(b)});
+ right.forEach(e=>{const b=document.createElement('button');b.dataset.e=e;b.textContent='.'+e;b.onclick=()=>{
+  if(!selI||b.classList.contains('done'))return;
+  if(selI.dataset.e===e){selI.classList.remove('sel');selI.classList.add('done');b.classList.add('done');selI=null;done++;if(done===4)setTimeout(()=>chEnd(true),500)}
+  else{errs++;$('cerr').textContent=`Errores: ${errs}/2`;b.style.borderColor='var(--bad)';setTimeout(()=>b.style.borderColor='',500);if(errs>2||errs>=3)setTimeout(()=>chEnd(false),500);else if(errs===2&&done<4){/* un error más y pierdes */}}};$('cr').appendChild(b)});
+}
+
+/* ============ FINAL ============ */
+function endGame(){
+ stopTimer();$('game').classList.add('hidden');$('end').classList.remove('hidden');
+ const g=S.grade,medal=g>=4.8?'🏆':g>=4?'🥇':g>=3?'🥈':'🥉';
+ const msg=g>=4.8?'¡LEYENDA DE LAS EXTENSIONES!':g>=4?'¡Excelente batalla!':g>=3?'¡Aprobaste! Puedes mejorar.':'Sigue entrenando, ¡la revancha te espera!';
+ const board=JSON.parse(localStorage.getItem('extQuestBoard')||'[]');
+ board.push({n:S.name,g:+g.toFixed(2),d:new Date().toLocaleDateString()});board.sort((a,b)=>b.g-a.g);
+ localStorage.setItem('extQuestBoard',JSON.stringify(board.slice(0,8)));
+ const h=S.hist,n=Math.max(h.length-1,1),pts=h.map((v,i)=>`${(i/n*296+2).toFixed(1)},${(78-(v-1)/4*74).toFixed(1)}`).join(' ');
+ $('end').innerHTML=`<div class="medal">${medal}</div><h1>${msg}</h1>
+ <p style="font-size:1.1rem">${S.name}, tu nota final es</p><div class="grade ${gradeClass(g)}" style="font-size:4.5rem">${g.toFixed(2)}</div>
+ <p>✅ Aciertos: <b>${S.ok}</b> · ❌ Errores: <b>${S.bad}</b> · 🔥 Mejor racha: <b>${S.best}</b> · ⭐ Puntos sobrantes: <b>${S.pts}</b><br>Nota más alta alcanzada: <b>${S.peak.toFixed(2)}</b></p>
+ <svg viewBox="0 0 300 80" style="width:100%;height:110px;background:#0004;border-radius:12px"><polyline points="${pts}" fill="none" stroke="#ffd24a" stroke-width="2.5"/></svg>
+ <h3>🏅 Salón de la fama (este equipo)</h3><table><tr><th>#</th><th>Nombre</th><th>Nota</th><th>Fecha</th></tr>${board.slice(0,8).map((b,i)=>`<tr><td>${i+1}</td><td>${b.n}</td><td>${b.g.toFixed(2)}</td><td>${b.d}</td></tr>`).join('')}</table><br>
+ <button class="big" id="again">🔁 Jugar otra vez (nuevas preguntas al azar)</button>`;
+ $('again').onclick=()=>newGame(S.name);
+}
+
+/* ============ EVENTOS ============ */
+$('pname').value=localStorage.getItem('extQuestName')||'';
+$('btnStart').onclick=()=>{const n=$('pname').value.trim()||'Jugador';localStorage.setItem('extQuestName',n);newGame(n)};
+$('btnNext').onclick=nextQ;
+$('btnEnd').onclick=()=>{if(confirm('¿Terminar la partida ahora?'))endGame()};
+</script>
+</body>
+</html>

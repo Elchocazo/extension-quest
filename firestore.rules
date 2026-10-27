@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /attempts/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.grade >= 1 && request.resource.data.grade <= 5
+                    && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 24;
+    }
+  }
+}

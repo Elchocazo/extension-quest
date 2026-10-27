@@ -453,7 +453,7 @@ saveAttempt(S.name,g,S.ok,S.bad,S.best).then(()=>showRanking('rank',S.name));
 
 /* ============ RANKING COMPARTIDO (Firebase Firestore vía REST) ============ */
 // Pega aquí los datos de tu proyecto Firebase (Configuración del proyecto > Tus apps > Web).
-const FB={apiKey:'',projectId:''};
+const FB={apiKey:'AIzaSyDshMqrAr7_1zBfMLqSbhDGoK_vrpM_lA8',projectId:'extension-quest-moz'};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fbOn=()=>!!(FB.apiKey&&FB.projectId);
 const fbBase=()=>`https://firestore.googleapis.com/v1/projects/${FB.projectId}/databases/(default)/documents`;
